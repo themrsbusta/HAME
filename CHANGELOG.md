@@ -1,6 +1,6 @@
 # Alterações
 
-## 0.91 RC — 2026-10-27
+## 0.92 RC — 2026-10-27
 
 - Corrigido gatilho: saturação ou recuperação explícita, sem compactar a cada resposta.
 - Contagem real do prompt formatado no server; tokenizer auxiliar e reserva explícita no CLI.
@@ -14,10 +14,17 @@
 - Migração de configurações e preservação de preferências; dados antigos não modificados.
 - Nova pasta independente para rollback da 0.9 RC.
 
-A versão arquitetural da especificação original continua 1.3; a versão do aplicativo é 0.91 RC.
+A versão arquitetural da especificação original continua 1.3; a versão do aplicativo é 0.92 RC.
 
 ### Fotos e memória YAML
 
 - Imagens no server com mmproj: original preservado, descrição YAML e rota local de recuperação.
 - Compilador lê YAML; referências selecionadas preservadas fora da síntese, dentro do orçamento.
 - Teste real após compactação e reinício recupera FOTO-091 e link do original.
+
+## Portabilidade 0.92 RC
+
+- Windows x64 preservado com WinForms e detecção.
+- Linux x64/ARM64 e Termux Android ARM64: configuração manual, sem sondagem na inicialização.
+- Grupos de processos Unix e tratamento SIGTERM/SIGHUP/Ctrl+C.
+- Exemplos JSON explícitos e scripts de compilação/execução por alvo.

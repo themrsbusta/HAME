@@ -25,38 +25,40 @@ import (
 //go:embed all:webui
 var assets embed.FS
 
-const Version = "0.91 RC"
+const Version = "0.92 RC"
 const CompiledSchema = `{"type":"object","properties":{"system_instruction":{"type":"string","minLength":1},"context_bundle":{"type":"object","properties":{"retrieved_knowledge":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"fact":{"type":"string"}},"required":["source","fact"],"additionalProperties":false}},"conversation_lineage":{"type":"array","items":{"type":"string"}}},"required":["retrieved_knowledge","conversation_lineage"],"additionalProperties":false},"response_format":{"type":"string","minLength":1}},"required":["system_instruction","context_bundle","response_format"],"additionalProperties":false}`
 
 type Config struct {
-	MainMMProj         string `json:"main_mmproj,omitempty"`
-	MainExtraArgs      string `json:"main_extra_args,omitempty"`
-	Threshold          int    `json:"compaction_threshold_percent"`
-	Reserve            int    `json:"reserve_tokens"`
-	TemplateReserve    int    `json:"template_reserve_tokens"`
-	Policy             string `json:"memory_policy"`
-	Prefill            *bool  `json:"prefill_compiled_context,omitempty"`
-	MemoryMax          int    `json:"compiled_memory_max_tokens"`
-	Tokenizer          string `json:"llama_tokenize,omitempty"`
-	Backend            string `json:"backend"`
-	CLI                string `json:"llama_cli"`
-	MainDevice         string `json:"main_device"`
-	CompilerDevice     string `json:"compiler_device"`
-	MainDeviceName     string `json:"main_device_name,omitempty"`
-	CompilerDeviceName string `json:"compiler_device_name,omitempty"`
-	PortMain           int    `json:"main_port,omitempty"`
-	PortCompiler       int    `json:"compiler_port,omitempty"`
-	Mode               string `json:"mode"`
-	Llama              string `json:"llama_server"`
-	MainModel          string `json:"main_model"`
-	CompilerModel      string `json:"compiler_model"`
-	Data               string `json:"data_dir"`
-	Listen             string `json:"listen"`
-	MainURL            string `json:"main_url"`
-	CompilerURL        string `json:"compiler_url"`
-	Context            int    `json:"context_tokens"`
-	Output             int    `json:"output_tokens"`
-	GPULayers          string `json:"gpu_layers"`
+	Capabilities       []string `json:"llama_capabilities,omitempty"`
+	RunnerVersion      string   `json:"llama_version,omitempty"`
+	MainMMProj         string   `json:"main_mmproj,omitempty"`
+	MainExtraArgs      string   `json:"main_extra_args,omitempty"`
+	Threshold          int      `json:"compaction_threshold_percent"`
+	Reserve            int      `json:"reserve_tokens"`
+	TemplateReserve    int      `json:"template_reserve_tokens"`
+	Policy             string   `json:"memory_policy"`
+	Prefill            *bool    `json:"prefill_compiled_context,omitempty"`
+	MemoryMax          int      `json:"compiled_memory_max_tokens"`
+	Tokenizer          string   `json:"llama_tokenize,omitempty"`
+	Backend            string   `json:"backend"`
+	CLI                string   `json:"llama_cli"`
+	MainDevice         string   `json:"main_device"`
+	CompilerDevice     string   `json:"compiler_device"`
+	MainDeviceName     string   `json:"main_device_name,omitempty"`
+	CompilerDeviceName string   `json:"compiler_device_name,omitempty"`
+	PortMain           int      `json:"main_port,omitempty"`
+	PortCompiler       int      `json:"compiler_port,omitempty"`
+	Mode               string   `json:"mode"`
+	Llama              string   `json:"llama_server"`
+	MainModel          string   `json:"main_model"`
+	CompilerModel      string   `json:"compiler_model"`
+	Data               string   `json:"data_dir"`
+	Listen             string   `json:"listen"`
+	MainURL            string   `json:"main_url"`
+	CompilerURL        string   `json:"compiler_url"`
+	Context            int      `json:"context_tokens"`
+	Output             int      `json:"output_tokens"`
+	GPULayers          string   `json:"gpu_layers"`
 }
 type State struct {
 	SessionID          string `json:"session_id"`
@@ -153,7 +155,7 @@ func (w *Worker) stop() {
 	if w == nil || w.cmd == nil {
 		return
 	}
-	_ = w.cmd.Process.Kill()
+	_ = killOwned(w.cmd)
 	<-w.done
 	_ = w.logfile.Close()
 	w.cmd = nil
@@ -290,7 +292,7 @@ func main() {
 	check := flag.Bool("check", false, "validate configuration and capabilities")
 	probePath := flag.String("probe", "", "inspect selected llama executable as JSON")
 	runner := flag.String("backend", "server", "server or cli for probe")
-	autoOpen := flag.Bool("open", true, "open chat when ready")
+	autoOpen := flag.Bool("open", !manualPlatform, "open chat when ready")
 	version := flag.Bool("version", false, "show HAME version")
 	testMode := flag.Bool("test-mode", false, "load models and verify execution mode")
 	compactFlag := flag.Bool("compact", false, "compact current or selected session")
@@ -315,6 +317,10 @@ func main() {
 		return
 	}
 	if *configure {
+		if manualPlatform {
+			log.Print("Linux/Termux: edite config.json; configurador indisponível")
+			os.Exit(1)
+		}
 		if err := showConfigurator(*config); err != nil {
 			log.Print(err)
 		}
@@ -329,7 +335,7 @@ func main() {
 		return
 	}
 	if err != nil {
-		if *check {
+		if *check || manualPlatform {
 			log.Print(err)
 			os.Exit(1)
 		}
@@ -344,7 +350,7 @@ func main() {
 			return
 		}
 	}
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, stop := signal.NotifyContext(context.Background(), shutdownSignals()...)
 	defer stop()
 	removeHandler, err := installConsoleHandler(stop)
 	if err != nil {
@@ -356,7 +362,7 @@ func main() {
 	e := &Engine{cfg: c, client: &http.Client{Timeout: 3 * time.Minute}, lifecycle: ctx}
 	if err = e.validate(ctx); err != nil {
 		log.Printf("Configuração/compatibilidade: %v", err)
-		if *check {
+		if *check || manualPlatform {
 			os.Exit(1)
 		}
 		if er := showConfigurator(*config); er != nil {

@@ -1,4 +1,4 @@
-# GitHub — HAME 0.91 RC
+# GitHub — HAME 0.92 RC
 
 Nome sugerido: hame. Tag sugerida: v0.91.0-rc.
 

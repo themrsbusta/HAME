@@ -29,3 +29,6 @@ Thumbs.db
 # Temporary configurator probes
 /.hame-config-check-*.json
 /cli-task-*/
+
+/build/
+*.test

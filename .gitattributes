@@ -8,3 +8,5 @@
 *.cmd text eol=crlf
 *.png binary
 *.ico binary
+
+*.sh text eol=lf

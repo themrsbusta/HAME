@@ -129,7 +129,7 @@ func (e *Engine) tokenText(ctx context.Context, w *Worker, text string) (int, bo
 			if err = startOwned(cmd); err != nil {
 				return 0, false, "", err
 			}
-			if err = cmd.Wait(); err != nil {
+			if err = waitOwned(cmd); err != nil {
 				return 0, false, "", fmt.Errorf("tokenizer: %w: %.300s", err, stderr.String())
 			}
 			var ids []int

@@ -101,7 +101,7 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 		return nil, err
 	}
 	w := &Worker{cmd: cmd, done: make(chan error, 1), logfile: f, url: fmt.Sprintf("http://127.0.0.1:%d", port), model: model, compiler: compiler}
-	go func() { w.done <- cmd.Wait() }()
+	go func() { w.done <- waitOwned(cmd) }()
 	logWorker(tag, cmd.Process.Pid, model)
 	deadline := time.NewTimer(5 * time.Minute)
 	defer deadline.Stop()
@@ -187,7 +187,7 @@ func (e *Engine) cliGenerate(ctx context.Context, w *Worker, msg []Message, limi
 		return "", err
 	}
 	logWorker("cli", cmd.Process.Pid, w.model)
-	if err = cmd.Wait(); err != nil {
+	if err = waitOwned(cmd); err != nil {
 		return "", fmt.Errorf("CLI: %w; %.700s", err, diagnostic.String())
 	}
 	data, err := os.ReadFile(resultPath)

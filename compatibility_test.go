@@ -17,7 +17,7 @@ func TestDeviceParsing(t *testing.T) {
 func TestPortableConfig(t *testing.T) {
 	dir := t.TempDir()
 	p := filepath.Join(dir, "config.json")
-	b, _ := json.Marshal(map[string]any{"backend": "cli", "llama_cli": "llama/llama-cli.exe", "main_model": "models/main.gguf", "compiler_model": "models/small.gguf", "data_dir": "data"})
+	b, _ := json.Marshal(map[string]any{"backend": "cli", "llama_cli": "llama/llama-cli.exe", "main_model": "models/main.gguf", "compiler_model": "models/small.gguf", "data_dir": "data", "main_device": "none", "compiler_device": "none", "gpu_layers": "0", "llama_capabilities": []string{"--model"}})
 	os.WriteFile(p, b, 0600)
 	c, err := load(p)
 	if err != nil || c.CLI != filepath.Join(dir, "llama", "llama-cli.exe") || c.Data != filepath.Join(dir, "data") {
@@ -65,6 +65,9 @@ func TestCLIFileIsolation(t *testing.T) {
 }
 
 func TestMemorySettingsMigration(t *testing.T) {
+	if manualPlatform {
+		t.Skip("legacy automatic migration is Windows-only; Unix requires explicit fields")
+	}
 	dir := t.TempDir()
 	path := filepath.Join(dir, "config.json")
 	raw := []byte(`{"backend":"server","llama_server":"engines/llama-server.exe","main_model":"models/large.gguf","compiler_model":"models/small.gguf","context_tokens":8192,"output_tokens":768,"main_device":"Vulkan2","mode":"constrained"}`)

@@ -5,6 +5,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"os/exec"
 	"sync"
 	"syscall"
@@ -157,3 +158,9 @@ func showConfigurator(path string) error {
 	}
 	return cmd.Wait()
 }
+
+const manualPlatform = false
+
+func shutdownSignals() []os.Signal  { return []os.Signal{os.Interrupt} }
+func waitOwned(cmd *exec.Cmd) error { return cmd.Wait() }
+func killOwned(cmd *exec.Cmd) error { return cmd.Process.Kill() }

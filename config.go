@@ -31,6 +31,9 @@ type Profile struct {
 }
 
 func cleanEnv() []string {
+	if manualPlatform {
+		return os.Environ()
+	}
 	var env []string
 	for _, item := range os.Environ() {
 		key := strings.ToUpper(strings.SplitN(item, "=", 2)[0])
@@ -50,7 +53,7 @@ func capture(ctx context.Context, path string, args ...string) ([]byte, error) {
 	if err := startOwned(cmd); err != nil {
 		return nil, err
 	}
-	err := cmd.Wait()
+	err := waitOwned(cmd)
 	if err != nil {
 		return b.Bytes(), fmt.Errorf("%s: %w: %.700s", filepath.Base(path), err, b.Bytes())
 	}
@@ -125,10 +128,15 @@ func load(path string) (Config, error) {
 	if err = json.Unmarshal(b, &c); err != nil {
 		return c, err
 	}
+	if manualPlatform {
+		if err := validateManualConfig(c); err != nil {
+			return c, err
+		}
+	}
 	if c.Backend == "" {
 		c.Backend = "server"
 	}
-	if c.CLI == "" && c.Llama != "" {
+	if !manualPlatform && c.CLI == "" && c.Llama != "" {
 		c.CLI = filepath.Join(filepath.Dir(c.Llama), "llama-cli.exe")
 	}
 	if c.Data == "" {
@@ -226,7 +234,7 @@ func load(path string) (Config, error) {
 	c.MainMMProj = resolve(c.MainMMProj)
 	c.CompilerModel = resolve(c.CompilerModel)
 	c.Data = resolve(c.Data)
-	if c.Tokenizer == "" {
+	if c.Tokenizer == "" && !manualPlatform {
 		c.Tokenizer = filepath.Join(filepath.Dir(c.executable()), "llama-tokenize.exe")
 	} else {
 		c.Tokenizer = resolve(c.Tokenizer)
@@ -242,7 +250,13 @@ func (c Config) executable() string {
 func (e *Engine) validate(ctx context.Context) error {
 	pctx, cancel := context.WithTimeout(ctx, 45*time.Second)
 	defer cancel()
-	profile, err := probe(pctx, e.cfg.executable(), e.cfg.Backend)
+	var profile *Profile
+	var err error
+	if manualPlatform {
+		profile, err = manualProfile(e.cfg)
+	} else {
+		profile, err = probe(pctx, e.cfg.executable(), e.cfg.Backend)
+	}
 	if err != nil {
 		return err
 	}
@@ -311,7 +325,7 @@ func (e *Engine) validate(ctx context.Context) error {
 				}
 			}
 		}
-		if !found {
+		if !found && !manualPlatform {
 			return fmt.Errorf("GPU %s não foi encontrada pelo llama selecionado", id)
 		}
 	}
