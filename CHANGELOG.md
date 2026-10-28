@@ -1,15 +1,23 @@
-# HAME — alterações
+# Alterações
 
-## 0.9 RC — 2026-10-27
+## 0.91 RC — 2026-10-27
 
-- Console substitui a área de notificações; removido o tray.
-- Job Object Windows garante encerramento dos workers próprios, sem matar processos externos pelo nome.
-- Configurador gráfico com seleção server/CLI, executáveis, GGUF, GPUs e CPU.
-- Probe de versão, parâmetros e dispositivos do executável escolhido.
-- Configuração relativa ao arquivo JSON e primeira execução sem caminhos específicos da máquina do autor.
-- Nome real do modelo na interface e nas respostas da API; favicon HAME.
-- Adaptador CLI por tarefa usando arquivo de saída, com contrato validado no HAME.
-- Adaptador server com pré-carregamento do contexto compilado e portas de workers dinâmicas.
-- Pacotes de código-fonte e distribuição atualizados, licença BSD-3-Clause mantida.
+- Corrigido gatilho: saturação ou recuperação explícita, sem compactar a cada resposta.
+- Contagem real do prompt formatado no server; tokenizer auxiliar e reserva explícita no CLI.
+- Constrained mantém principal entre interações e alterna apenas ao compactar.
+- Resident mantém ambos os processos; limpa e verifica slot sem descarregar principal.
+- context_state volta a ser produzido semanticamente pelo modelo principal.
+- Compilação incremental com fontes novas/alteradas e recuperação completa opcional.
+- GUI organizada em abas, com políticas, reservas, limite de memória, prefill, ações manuais e teste real de modo.
+- Indicadores e controles adicionados como adaptação à WebUI oficial.
+- Logotipo do raio substituído pelo ícone do HAME nos componentes nativos; favicon mantido.
+- Migração de configurações e preservação de preferências; dados antigos não modificados.
+- Nova pasta independente para rollback da 0.9 RC.
 
-A especificação arquitetural HAME 1.3 permanece como referência em specs/ e não é o número desta versão do aplicativo.
+A versão arquitetural da especificação original continua 1.3; a versão do aplicativo é 0.91 RC.
+
+### Fotos e memória YAML
+
+- Imagens no server com mmproj: original preservado, descrição YAML e rota local de recuperação.
+- Compilador lê YAML; referências selecionadas preservadas fora da síntese, dentro do orçamento.
+- Teste real após compactação e reinício recupera FOTO-091 e link do original.

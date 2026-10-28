@@ -11,5 +11,13 @@
   "mode": "constrained",
   "context_tokens": 8192,
   "output_tokens": 1024,
-  "gpu_layers": "auto"
+  "gpu_layers": "auto",
+  "compaction_threshold_percent": 90,
+  "reserve_tokens": 1024,
+  "template_reserve_tokens": 128,
+  "compiled_memory_max_tokens": 1024,
+  "memory_policy": "hybrid",
+  "prefill_compiled_context": true,
+  "main_extra_args": "",
+  "main_mmproj": ""
 }

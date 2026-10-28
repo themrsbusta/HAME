@@ -63,3 +63,55 @@ func TestCLIFileIsolation(t *testing.T) {
 		t.Fatal("unknown file format accepted")
 	}
 }
+
+func TestMemorySettingsMigration(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	raw := []byte(`{"backend":"server","llama_server":"engines/llama-server.exe","main_model":"models/large.gguf","compiler_model":"models/small.gguf","context_tokens":8192,"output_tokens":768,"main_device":"Vulkan2","mode":"constrained"}`)
+	os.WriteFile(path, raw, 0600)
+	c, err := load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if c.Threshold != 90 || c.Reserve != 768 || c.Policy != "hybrid" || c.MemoryMax != 1024 || c.MainDevice != "Vulkan2" {
+		t.Fatal(c)
+	}
+	after, _ := os.ReadFile(path)
+	if string(after) != string(raw) {
+		t.Fatal("migration overwrote original config")
+	}
+}
+func TestCLIResidentRejected(t *testing.T) {
+	dir := t.TempDir()
+	path := filepath.Join(dir, "config.json")
+	os.WriteFile(path, []byte(`{"backend":"cli","mode":"resident"}`), 0600)
+	if _, err := load(path); err == nil {
+		t.Fatal("CLI resident accepted")
+	}
+}
+
+func TestHAMEBrandingReplacesOnlyOriginalLogo(t *testing.T) {
+	entries, err := assets.ReadDir("webui/_app/immutable")
+	if err != nil {
+		t.Fatal(err)
+	}
+	found := false
+	for _, entry := range entries {
+		if strings.HasPrefix(entry.Name(), "bundle.") && strings.HasSuffix(entry.Name(), ".js") {
+			data, er := assets.ReadFile("webui/_app/immutable/" + entry.Name())
+			if er != nil {
+				t.Fatal(er)
+			}
+			text := string(data)
+			if strings.Contains(text, "M244.95 8C215.233") {
+				t.Fatal("old lightning logo remains")
+			}
+			if strings.Contains(text, `aria-label="HAME"`) && strings.Contains(text, `href="/pwa-192x192.png"`) {
+				found = true
+			}
+		}
+	}
+	if !found {
+		t.Fatal("HAME logo not embedded")
+	}
+}

@@ -21,11 +21,13 @@ type Device struct {
 	Memory string `json:"memory"`
 }
 type Profile struct {
+	ShortFlags []string        `json:"short_flags,omitempty"`
 	Executable string          `json:"executable"`
 	Backend    string          `json:"backend"`
 	Version    string          `json:"version"`
 	Devices    []Device        `json:"devices"`
 	Flags      map[string]bool `json:"flags"`
+	Resident   bool            `json:"resident_candidate"`
 }
 
 func cleanEnv() []string {
@@ -87,6 +89,9 @@ func probe(ctx context.Context, path, backend string) (*Profile, error) {
 	for _, flag := range regexp.MustCompile(`--[a-z][a-z0-9-]+`).FindAllString(string(help), -1) {
 		profile.Flags[flag] = true
 	}
+	for _, match := range regexp.MustCompile(`(?m)(?:^|[ ,\t])(-[A-Za-z][A-Za-z0-9-]*)(?:[ ,\t]|$)`).FindAllStringSubmatch(string(help), -1) {
+		profile.ShortFlags = append(profile.ShortFlags, match[1])
+	}
 	if profile.Flags["--list-devices"] {
 		data, er := capture(ctx, path, "--list-devices")
 		if er != nil {
@@ -94,6 +99,7 @@ func probe(ctx context.Context, path, backend string) (*Profile, error) {
 		}
 		profile.Devices = parseDevices(string(data))
 	}
+	profile.Resident = backend == "server" && profile.Flags["--slots"] && profile.Flags["--cache-ram"] && profile.Flags["--no-cache-idle-slots"] && profile.Flags["--slot-save-path"]
 	return profile, nil
 }
 func validateProfile(p *Profile) error {
@@ -152,6 +158,39 @@ func load(path string) (Config, error) {
 	if c.Output == 0 {
 		c.Output = 1024
 	}
+	if c.Threshold == 0 {
+		c.Threshold = 90
+	}
+	if c.Policy == "" {
+		c.Policy = "hybrid"
+	}
+	if c.Reserve == 0 {
+		c.Reserve = c.Output
+	}
+	if c.TemplateReserve == 0 {
+		c.TemplateReserve = 128
+	}
+	if c.MemoryMax == 0 {
+		c.MemoryMax = 1024
+		if c.MemoryMax > c.Context/4 {
+			c.MemoryMax = c.Context / 4
+		}
+	}
+	if c.Threshold < 10 || c.Threshold > 99 {
+		return c, errors.New("gatilho deve estar entre 10 e 99%")
+	}
+	if c.Policy != "automatic" && c.Policy != "on_demand" && c.Policy != "hybrid" {
+		return c, errors.New("política inválida")
+	}
+	if c.Reserve < c.Output || c.Reserve+c.TemplateReserve >= c.Context || c.TemplateReserve < 0 {
+		return c, errors.New("reserva deve cobrir a saída e deixar espaço no contexto")
+	}
+	if c.MemoryMax < 128 || c.MemoryMax+c.Reserve+c.TemplateReserve >= c.Context {
+		return c, errors.New("orçamento da memória compilada inválido")
+	}
+	if _, err := parseStartupArgs(c.MainExtraArgs); err != nil {
+		return c, err
+	}
 	if c.Backend != "server" && c.Backend != "cli" {
 		return c, errors.New("backend deve ser server ou cli")
 	}
@@ -184,8 +223,14 @@ func load(path string) (Config, error) {
 	c.Llama = resolve(c.Llama)
 	c.CLI = resolve(c.CLI)
 	c.MainModel = resolve(c.MainModel)
+	c.MainMMProj = resolve(c.MainMMProj)
 	c.CompilerModel = resolve(c.CompilerModel)
 	c.Data = resolve(c.Data)
+	if c.Tokenizer == "" {
+		c.Tokenizer = filepath.Join(filepath.Dir(c.executable()), "llama-tokenize.exe")
+	} else {
+		c.Tokenizer = resolve(c.Tokenizer)
+	}
 	return c, nil
 }
 func (c Config) executable() string {
@@ -211,6 +256,33 @@ func (e *Engine) validate(ctx context.Context) error {
 		info, er := os.Stat(path)
 		if er != nil || info.IsDir() {
 			return fmt.Errorf("modelo não encontrado: %s", path)
+		}
+	}
+
+	if e.cfg.MainMMProj != "" {
+		if !profile.Flags["--mmproj"] {
+			return errors.New("o llama selecionado não anuncia suporte a --mmproj")
+		}
+		info, err := os.Stat(e.cfg.MainMMProj)
+		if err != nil || info.IsDir() {
+			return fmt.Errorf("projetor mmproj não encontrado: %s", e.cfg.MainMMProj)
+		}
+		for _, arg := range strings.Fields(e.cfg.MainExtraArgs) {
+			if arg == "--mmproj" || strings.HasPrefix(arg, "--mmproj=") {
+				return errors.New("configure mmproj no campo próprio, sem repetir nos argumentos extras")
+			}
+		}
+	}
+	for _, choice := range []struct{ id, name *string }{{&e.cfg.MainDevice, &e.cfg.MainDeviceName}, {&e.cfg.CompilerDevice, &e.cfg.CompilerDeviceName}} {
+		if *choice.id == "auto" {
+			if profile.Flags["--device"] {
+				d := automaticDevice(profile.Devices)
+				*choice.id = d.ID
+				*choice.name = d.Name
+				fmt.Printf("GPU automática: %s %s\n", d.ID, d.Name)
+			} else {
+				fmt.Println("GPU automática: seleção delegada ao llama (sem --device)")
+			}
 		}
 	}
 	for i, id := range []string{e.cfg.MainDevice, e.cfg.CompilerDevice} {
@@ -243,10 +315,38 @@ func (e *Engine) validate(ctx context.Context) error {
 			return fmt.Errorf("GPU %s não foi encontrada pelo llama selecionado", id)
 		}
 	}
+	if e.cfg.Mode == "resident" && !profile.Resident {
+		return errors.New("Resident incompatível: exige server com slots, slot-save-path, cache-ram e controle de cache idle; use Testar modo para validar os endpoints reais")
+	}
+	extra, err := validateStartupArgs(e.cfg.MainExtraArgs, profile)
+	if err != nil {
+		return err
+	}
+	e.extraMain = extra
 	e.profile = profile
 	return nil
 }
 func configuratorPath() string {
 	exe, _ := os.Executable()
 	return filepath.Join(filepath.Dir(exe), "Configurar-HAME.ps1")
+}
+
+func (p *Profile) hasStartupFlag(flag string) bool {
+	if p.Flags[flag] {
+		return true
+	}
+	for _, alias := range p.ShortFlags {
+		if alias == flag {
+			return true
+		}
+	}
+	return false
+}
+
+// Preserve the backend device priority; shared memory size does not measure GPU performance.
+func automaticDevice(devices []Device) Device {
+	if len(devices) > 0 {
+		return devices[0]
+	}
+	return Device{ID: "none", Name: "CPU"}
 }

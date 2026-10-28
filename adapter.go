@@ -32,6 +32,12 @@ func (e *Engine) commonArgs(compiler bool) []string {
 	if e.profile != nil && e.profile.Flags["--reasoning"] {
 		args = append(args, "--reasoning", "off")
 	}
+	if !compiler {
+		if e.cfg.MainMMProj != "" {
+			args = append(args, "--mmproj", e.cfg.MainMMProj)
+		}
+		args = append(args, e.extraMain...)
+	}
 	return args
 }
 func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
@@ -65,8 +71,11 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 		return nil, err
 	}
 	args := append(e.commonArgs(compiler), "--host", "127.0.0.1", "--port", fmt.Sprint(port), "--parallel", "1")
+	if e.profile != nil && e.profile.Flags["--slots"] {
+		args = append(args, "--slots")
+	}
 	if e.profile != nil {
-		for _, flag := range []string{"--no-cache-idle-slots", "--no-cache-prompt"} {
+		for _, flag := range []string{"--no-cache-idle-slots"} {
 			if e.profile.Flags[flag] {
 				args = append(args, flag)
 			}
@@ -74,6 +83,14 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 		if e.profile.Flags["--cache-ram"] {
 			args = append(args, "--cache-ram", "0")
 		}
+	}
+	if e.cfg.Mode == "resident" && !compiler {
+		slotDir := filepath.Join(e.cfg.Data, "runtime-slots", "main")
+		if err = os.MkdirAll(slotDir, 0700); err != nil {
+			f.Close()
+			return nil, err
+		}
+		args = append(args, "--slot-save-path", slotDir)
 	}
 	cmd := exec.Command(e.cfg.Llama, args...)
 	cmd.Env = cleanEnv()
@@ -120,7 +137,7 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 func logWorker(tag string, pid int, model string) {
 	fmt.Printf("worker=%s pid=%d model=%s\n", tag, pid, filepath.Base(model))
 }
-func (e *Engine) cliCompletion(ctx context.Context, w *Worker, msg []Message, structured bool) (string, error) {
+func (e *Engine) cliGenerate(ctx context.Context, w *Worker, msg []Message, limit int, schemaText string) (string, error) {
 	if e.profile == nil {
 		return "", errors.New("perfil CLI não validado")
 	}
@@ -148,13 +165,13 @@ func (e *Engine) cliCompletion(ctx context.Context, w *Worker, msg []Message, st
 	user := strings.TrimSpace(prompt.String())
 	os.WriteFile(filepath.Join(dir, "prompt.txt"), []byte(user), 0600)
 	os.WriteFile(filepath.Join(dir, "system.txt"), []byte(system.String()), 0600)
-	args := append(e.commonArgs(w.compiler), "--file", filepath.Join(dir, "prompt.txt"), "--system-prompt-file", filepath.Join(dir, "system.txt"), "--single-turn", "--simple-io", "--no-escape", "--no-display-prompt", "--log-disable", "--no-show-timings", "--n-predict", fmt.Sprint(e.cfg.Output))
+	args := append(e.commonArgs(w.compiler), "--file", filepath.Join(dir, "prompt.txt"), "--system-prompt-file", filepath.Join(dir, "system.txt"), "--single-turn", "--simple-io", "--no-escape", "--no-display-prompt", "--log-disable", "--no-show-timings", "--n-predict", fmt.Sprint(limit))
 	if e.profile.Flags["--color"] {
 		args = append(args, "--color", "off")
 	}
 	resultPath := filepath.Join(dir, "response.txt")
 	args = append(args, "--output-file", resultPath)
-	if structured {
+	if schemaText != "" {
 		if e.profile.Flags["--temperature"] {
 			args = append(args, "--temperature", "0")
 		} else if e.profile.Flags["--temp"] {
@@ -275,6 +292,6 @@ func (e *Engine) metadata(route string) any {
 	if defaults, ok := props["default_generation_settings"].(map[string]any); ok {
 		defaults["n_ctx"] = e.cfg.Context
 	}
-	props["modalities"] = map[string]bool{"vision": false, "audio": false, "video": false}
+	props["modalities"] = map[string]bool{"vision": e.cfg.MainMMProj != "" && e.cfg.Backend == "server", "audio": false, "video": false}
 	return props
 }

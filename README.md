@@ -1,113 +1,133 @@
-# HAME 0.9 RC
+# HAME 0.91 RC
 
-<p align="center"><img src="assets/HAME.png" alt="HAME: computador pixel art com cérebro na tela" width="180"></p>
+<p align="center"><img src="assets/HAME.png" alt="HAME" width="170"></p>
 
-**Memória persistente sobre llama.cpp: histórico completo, compilação automática de contexto e descarte do KV cache após cada resposta.**
+**Hierarchical Async Memory Engine — memória persistente sobre llama.cpp, agora com compactação por ocupação e modos Constrained/Resident distintos.**
 
-HAME (Hierarchical Async Memory Engine) coordena um modelo principal e um compilador de memória leve. Esta versão para **Windows x64** inclui a interface oficial do llama-server, um configurador gráfico e uma janela de console que controla o ciclo de vida dos workers. Código próprio sob **[BSD-3-Clause](LICENSE)**; autor da especificação: **Busta Supastar**.
+Esta revisão é incremental sobre a 0.9 RC. Mantém server/CLI, WebUI oficial vendorizada, histórico persistente, configurador WinForms, console e isolamento dos workers por Job Object. A especificação original de Busta Supastar em specs/HAME_1.3.yaml não foi alterada. Código próprio sob BSD-3-Clause.
 
-A versão do aplicativo é **0.9 RC**. A especificação arquitetural original é HAME 1.3 e está preservada em [specs/HAME_1.3.yaml](specs/HAME_1.3.yaml); são identificadores distintos.
+## O que foi corrigido
 
-## Começar
+A 0.9 RC compilava a memória e encerrava o principal após cada resposta. A 0.91 RC mantém a conversa ativa enquanto a próxima requisição couber no orçamento. Antes de inferir, conta o prompt, considera a saída reservada e a margem de template e decide se precisa compactar. Não há compilação obrigatória pós-resposta.
 
-1. Extraia o pacote HAME-0.9-RC-windows-x64.zip, ou compile este repositório.
-2. Execute **Configurar-HAME.cmd**. Na primeira execução sem configuração válida, o configurador abre automaticamente.
-3. Escolha o motor, seu executável e os dois modelos GGUF.
-4. Clique em **Detectar GPUs / versão** e selecione os dispositivos desejados.
-5. Clique em **Salvar e iniciar**. Nas próximas vezes, use **Iniciar-HAME.cmd**.
+O principal produz context_state semântico com session_id, current_goal, unresolved_question, last_summary e search_intent. O orquestrador valida os campos, sem substituir a intenção por um objetivo genérico. O compilador recebe esse estado, a memória consolidada anterior e as fontes persistentes; produz compiled_prompt com system_instruction, context_bundle e response_format, usados na próxima memória ativa.
 
-A conversa abre no navegador; o console permanece aberto. **Fechar o console ou pressionar Ctrl+C encerra o HAME e os workers que ele criou.** Não existe mais ícone na área de notificações. Fechar somente a aba do navegador mantém o motor ativo.
+## Modos de execução
 
-O pacote não inclui llama.cpp, suas DLLs ou modelos GGUF. Escolha uma distribuição completa do llama.cpp e mantenha suas DLLs junto do executável correspondente. O configurador não baixa nem substitui esses arquivos.
-
-## Seleção do motor
-
-| Motor | Integração | Preparação da próxima mensagem |
+| Modo | Conversa normal | Compactação |
 | --- | --- | --- |
-| **llama-server** | HTTP/JSON; o principal local reinicia após cada resposta | Compilador gera o pacote; o contexto é pré-carregado no novo principal com n_predict=0 |
-| **llama-cli** | Um processo por geração; saída lida do arquivo do próprio CLI | Pacote compilado salvo; o principal carrega essa memória quando a próxima mensagem chega |
+| **Constrained** | Principal server permanece carregado | Principal extrai estado e encerra; compilador carrega, compila e encerra; principal reinicia com a memória |
+| **Resident** | Principal e compilador server permanecem carregados | Compilador trabalha; a slot 0 do principal é apagada e verificada; memória é substituída sem trocar PID/pesos |
+| **CLI por tarefas** | Cada inferência é um processo, como na 0.9 RC | Só compila quando a política pede; nunca anuncia residência ou prefill persistente |
 
-Server é o padrão recomendado para a integração com interface web e pré-carregamento. CLI é uma alternativa selecionável para quem prefere execução por tarefa. Ele recarrega o modelo a cada chamada e não mantém prefill residente. O modo resident está disponível somente para server; nele o compilador pode permanecer carregado, mas o principal local ainda reinicia para descartar seu cache antigo.
+No Constrained os dois modelos não são mantidos carregados ao mesmo tempo. No Resident, não se mata o principal para limpar o KV cache. A versão instalada deve oferecer slots, erase e mecanismos para impedir cache antigo fora da slot. O HAME habilita --slots, --slot-save-path em pasta própria, --cache-ram 0 e --no-cache-idle-slots. No startup, faz um pequeno prefill de teste, exige cache não vazio, chama erase e confirma n_prompt_tokens=0 antes de aceitar Resident. Backend incompatível é rejeitado, não simulado.
 
-O HAME inspeciona --version e --help para verificar as capacidades necessárias. Parâmetros opcionais só são usados quando anunciados. O adaptador CLI exige a saída em arquivo e valida seu formato; não interpreta banners ou a ecoagem truncada do terminal. Uma mudança incompatível gera diagnóstico e exige reconfiguração ou uso de outra versão. **Não há garantia de compatibilidade com toda atualização futura do llama.cpp.**
+O prefill de compatibilidade é um teste curto de suporte; a opção de prefill da memória compilada controla as compactações da conversa.
 
-## GPUs e CPU
+## Políticas
 
-O configurador executa --list-devices no executável selecionado e lista os IDs, nomes e memória informados por ele. Não presume Vulkan0, fabricante, índice ou quantidade de VRAM. Se a identidade de uma GPU configurada mudar, solicita nova seleção.
+- **Automática:** compacta ao atingir o percentual configurado. Recuperação em uma pergunta via flag/comando exige Híbrida ou Sob demanda; a ação manual completa continua disponível.
+- **Sob demanda:** compacta por solicitação explícita. Se a próxima entrada não couber, bloqueia antes de inferir e pede compactação.
+- **Híbrida:** aceita saturação e recuperação explícita.
 
-Pode escolher uma GPU diferente para cada worker, Automático ou Somente CPU. Vulkan suporta GPUs com driver Vulkan compatível; CPU utiliza o backend de CPU do llama.cpp. Distribuições CUDA, SYCL ou outros backends podem anunciar seus próprios dispositivos; apenas o Vulkan instalado foi validado com hardware real nesta revisão. A memória anunciada para uma GPU integrada pode ser compartilhada, não VRAM dedicada.
+Ações manuais estão disponíveis no chat e no configurador. Use **Compactar** para consolidar incrementalmente e **Recuperar histórico** para reler as fontes originais. Em uma pergunta, use retrieve=true na API ou o prefixo /recuperar seguido da pergunta para solicitar recuperação completa, conforme a política.
 
-## Ciclo de memória
+## Contagem e limites
 
-1. O principal recebe a memória interna compilada e a nova mensagem.
-2. Pergunta e resposta são salvas juntas em data/context/<sessão>/.
-3. O processo principal local é encerrado; seu KV cache antigo deixa de existir.
-4. A resposta chega à interface enquanto o compilador prepara a memória em segundo plano.
-5. No server, um novo principal recebe prefill; no CLI, a memória fica pronta no disco para a próxima chamada.
+No server, /apply-template formata as mensagens e /tokenize conta os tokens reais, incluindo instruções e template. O orçamento considera prompt + reserva de resposta + margem adicional. A reserva deve cobrir output_tokens. A memória compilada possui limite próprio e seu tamanho é validado com o tokenizer.
 
-O histórico completo permanece visível na interface e preservado no disco. O gateway não repassa o histórico bruto que a interface envia ao principal. A mensagem seguinte aguarda a preparação pendente. Falhas não apagam a troca já salva; a próxima tentativa reprocessa a memória.
+No CLI, HAME detecta llama-tokenize.exe ao lado do motor e usa o vocabulário do GGUF. A contagem do conteúdo é real, mas o CLI por tarefas não expõe o prompt formatado antes da geração ao gateway. Por isso o total é marcado como **não exato**, com uma reserva de template configurável. Se o tokenizer auxiliar não estiver disponível, usa um limite superior conservador por bytes UTF-8, identificado no status; não apresenta esse fallback como contagem real. Templates personalizados podem precisar de reserva maior. Para orçamento exato do prompt formatado, use server.
 
-Em server, o contrato é solicitado com JSON Schema. No CLI, esta versão valida o contrato após a geração, pois a gramática do CLI instalado falhou com um dos GGUF testados. Modelos que não seguem o contrato podem exigir outra configuração ou o modo server.
+Mensagens que sozinhas excedem o orçamento são recusadas antes de geração. Se memória compilada + nova mensagem não couberem, a requisição falha sem substituir o snapshot ativo. A capacidade real do modelo/backend continua valendo; o tamanho selecionado deve ser compatível com o modelo e hardware.
 
-## Segurança de processos no Windows
+## Configurador
 
-Cada worker é criado suspenso, incluído em um Job Object privado com KILL_ON_JOB_CLOSE e só então liberado. Fechar o console, finalizar o HAME ou interromper uma tarefa não deixa os workers gerenciados em execução. Processos já abertos pelo usuário, inclusive outro llama-server.exe, não são adicionados ao Job Object nem encerrados por nome. O navegador padrão não é incluído no grupo dos modelos.
+Execute Configurar-HAME.cmd ou HAME.exe -configure. A seção **Gerenciamento de Memória e Execução** oferece:
 
-## Configuração portátil
+| Campo | Padrão |
+| --- | --- |
+| Janela | 8192 tokens |
+| Gatilho | 90% do orçamento |
+| Reserva para resposta | Saída máxima configurada |
+| Reserva de template | 128 tokens |
+| Política | Híbrida |
+| Memória compilada máxima | 1024 tokens, ajustada em janelas pequenas |
+| Prefill compilado | Ativado para server |
+| Modo | Constrained |
 
-config.example.json é deliberadamente vazio nos caminhos. A configuração real é criada pelo configurador e ignorada pelo Git. Caminhos relativos são resolvidos em relação à pasta de config.json, não ao diretório de trabalho do terminal. Arquivos dentro da pasta do app são salvos como caminhos relativos quando possível. Arquivos externos continuam com seus caminhos locais e precisam ser selecionados novamente em outra máquina.
+Mantém executável, backend, dois GGUF, CPU/GPU independente por modelo, pasta de dados, porta, saída máxima e camadas GPU. A detecção consulta a instalação escolhida. Resident e prefill residente não são habilitados para CLI. **Testar** verifica arquivos e parâmetros sem carregar pesos; **Testar modo selecionado** carrega os modelos e verifica os mecanismos reais, podendo demorar. Evite executar outro teste de modo enquanto sua instalação já ocupa a memória com uma conversa.
 
-A configuração permite motor, executáveis, dois GGUF, GPUs, pasta de contexto, modo, porta do chat, contexto, limite de saída e camadas GPU. As portas dos workers server são escolhidas dinamicamente; o chat usa loopback e a porta configurada, por padrão 8088.
+**Consultar contexto** mostra a ocupação da conversa ativa. **Compactar agora** atua no HAME já aberto no endereço configurado; marque recuperação completa para reler o arquivo original. Sessão em branco seleciona a última conversa ativa.
 
-## Compilar
+Configurações 0.9 sem os novos campos recebem defaults em memória. Caminhos, modelos, dispositivos e preferências não são apagados. Ao salvar pela GUI, campos desconhecidos também são preservados. O carregamento não sobrescreve o arquivo antigo automaticamente.
 
-Requer **Go 1.23+**, **Python 3** e **clang/LLVM** no PATH. Não há dependências Go externas nem pacotes Python de terceiros. O configurador usa Windows PowerShell 5.1, .NET Framework e Windows Forms disponíveis no Windows; não depende do PowerShell 7.
+## Histórico e eficiência
+
+O texto original não é apagado, truncado ou substituído pela compactação. data/context contém trocas originais; data/archive de versões anteriores continua legível. O snapshot de trabalho fica em data/sessions. A WebUI mantém o histórico visual no IndexedDB e não recebe instrução para apagá-lo.
+
+A compilação normal reaproveita o contrato anterior e envia apenas arquivos novos/alterados, detectados por tamanho e modificação. A recuperação completa relê originais, inclusive os já consolidados, para permitir buscar fatos omitidos do resumo. A base global data/knowledge também participa. Referências de origem são preservadas no contrato; o cache de fontes é operacional, não substitui o arquivo original.
+
+Há perda possível na síntese e custo crescente de recuperação. Não se promete contexto literalmente infinito nem precisão perfeita. Uma única instância deve usar cada pasta de dados. O histórico visual depende do perfil e da origem do navegador; o disco é independente.
+
+## Iniciar e compilar
+
+Windows x64, distribuição completa do llama.cpp e dois GGUF. O ZIP não inclui motores, DLLs ou modelos. Vulkan exige GPU/driver compatíveis; CPU é opção independente.
+
+```powershell
+.\Configurar-HAME.cmd
+.\Iniciar-HAME.cmd
+```
+
+O console controla somente os workers que HAME iniciou. Fechá-lo ou usar Ctrl+C encerra esses workers, preservando processos independentes. Não há tray. O nome real do modelo aparece na WebUI e o favicon é do HAME.
+
+Para compilar: Go 1.23+, Python 3 e clang no PATH. O configurador usa Windows PowerShell 5.1/Windows Forms. Não foram adicionadas dependências Go externas.
 
 ```powershell
 .\build.ps1
-```
-
-O script gera o recurso Windows do ícone, executa testes e go vet e cria HAME.exe como aplicativo de console, com versão de arquivo 0.9 RC. Não utiliza -H=windowsgui. config.json é copiado do exemplo se ainda não existir. Recompilar o recurso de ícone requer clang; a arte original está em assets/ e não precisa ser gerada novamente.
-
-Comandos úteis:
-
-```powershell
-.\HAME.exe -version
-.\HAME.exe -configure
 .\HAME.exe -check
-.\HAME.exe -probe 'C:\llama\llama-server.exe' -backend server
-.\HAME.exe -probe 'C:\llama\llama-cli.exe' -backend cli
-.\HAME.exe -open=false
+.\HAME.exe -test-mode -open=false
 ```
 
--check verifica arquivos e capacidades sem carregar os modelos. O probe consulta o executável escolhido; portanto execute apenas distribuições confiáveis do llama.cpp.
+A especificação permanece em specs/. Consulte docs/VALIDATION.md para resultados reais, incluindo perdas ou limitações observadas. Consulte docs/API.md para as ações manuais e telemetria.
 
-## Código
+## Limitações preservadas
 
-| Arquivo | Responsabilidade |
-| --- | --- |
-| main.go | Contratos, compilador, estado e entrada do programa |
-| config.go | Configuração portátil, probe e validação de capacidades |
-| adapter.go | Adaptadores server/CLI e identidade real do modelo |
-| cycle.go | Histórico, API, reset e preparação automática |
-| process_windows.go | Job Object, console e ciclo de vida dos workers |
-| Configurar-HAME.ps1 | Configurador WinForms com detecção assíncrona |
-| *_test.go | Ciclo, compatibilidade, parsing, isolamento de processos |
-| webui/ | Interface oficial vendorizada e adaptador de sessões |
-| build_icon_resources.py | Ícone e VERSIONINFO nativos do Windows |
+Gateway textual, SSE com resposta completa ao final, sem tools, áudio, edição de ramos ou retomada de streams. A WebUI vendorizada é b10687; trocar o motor não a atualiza. Versões futuras de llama.cpp podem exigir adaptação. O CLI não é residente e sua validação JSON é posterior à geração. O arquivo original e o snapshot são gravações separadas, não uma transação única de banco.
 
-## Testes e limites
+Código próprio BSD-3-Clause, copyright (c) 2026 Busta Supastar. Avisos MIT upstream preservados em LICENSE-llama.cpp.txt. Nenhum repositório remoto foi criado ou publicado automaticamente.
 
-Veja [docs/VALIDATION.md](docs/VALIDATION.md) para os ensaios reais desta RC e [docs/COMPATIBILITY.md](docs/COMPATIBILITY.md) para a estratégia de atualização.
+Contratos inválidos podem receber uma única tentativa corretiva, sem preencher objetivos semanticamente por conta do orquestrador. Identificadores alfanuméricos em maiúsculas com hífen/underscore são conferidos literalmente contra a evidência; grafias novas são corrigidas pelo modelo ou rejeitadas. Isso não valida toda a semântica e não elimina a possibilidade de perdas. Saídas inválidas de diagnóstico ficam na pasta privada de sessões, não no pacote público.
 
-A memória compilada é textual e com perda; ela não é um KV cache neural. O arquivo original é preservado, mas o resumo pode omitir detalhes. O compilador percorre o histórico em lotes, com custo crescente. Não há promessa de contexto infinito, precisão perfeita ou latência fixa.
+## Argumentos extras de inicialização
 
-O gateway suporta conversas textuais. O SSE atual entrega a resposta completa ao terminar, sem streaming token a token. Imagens, áudio, tools, edição de ramos, regeneração e retomada de streams da interface upstream não estão implementados no gateway. Use uma instância por pasta de dados. A interface vendorizada permanece na versão b10687; atualizar os motores não troca automaticamente essa interface.
+O configurador possui main_extra_args para o modelo principal, por exemplo --tools all ou --threads 8. Valores com espaços usam aspas duplas. O texto é convertido em argv e passado diretamente ao executável, sem cmd, PowerShell ou avaliação de scripts. O compilador não recebe esses argumentos extras. Opções de modelo, contexto, portas, arquivos e isolamento gerenciadas pelo HAME são recusadas em conflito. Flags longas precisam ser anunciadas pelo executável selecionado.
 
-## GitHub e licença
+O campo configura o motor; ele não implementa chamadas de ferramentas no gateway. --tools all pode habilitar recursos internos do llama escolhido, mas o suporte a tools/ciclos tool-call na API HAME continua fora desta RC.
 
-Esta pasta é a raiz pronta para o repositório: sem modelos, executáveis, históricos de conversa, logs ou configuração pessoal. [GITHUB.md](GITHUB.md) contém descrição e tópicos sugeridos. Nenhum repositório remoto foi criado ou publicado.
+## Argumentos extras (principal)
 
-Código próprio: **BSD-3-Clause**, copyright (c) 2026, Busta Supastar. A licença MIT de componentes derivados do llama.cpp está em [LICENSE-llama.cpp.txt](LICENSE-llama.cpp.txt). Consulte [LICENSING.md](LICENSING.md).
+No configurador, preencha o campo com opções como `--tools all`. Caminhos com espaços devem estar entre aspas. O HAME converte o texto em argumentos sem executar shell e verifica o suporte anunciado pelo executável. Opções de modelo, contexto, dispositivos, porta e cache são geridas pelo HAME. O campo aplica-se somente ao principal. O gateway continua oferecendo conversa textual; habilitar ferramentas no backend não adiciona execução de ferramentas ao HAME.
 
-O histórico visual pertence ao perfil e à origem (endereço/porta) do navegador. Trocar de perfil ou porta não importa automaticamente esse IndexedDB; os arquivos originais de contexto no disco continuam independentes.
+## Projetor e detecção automática
+
+O campo opcional **Projetor mmproj** (`main_mmproj`) carrega um GGUF de projeção compatível somente no modelo principal. O HAME verifica o arquivo e o suporte a `--mmproj`. No modo server, também habilita o fluxo de fotos com memória YAML descrito abaixo.
+
+O configurador detecta dispositivos ao abrir com um executável configurado e ao alterar seu caminho. Em **Automático**, cada inicialização do HAME consulta o llama selecionado e usa a primeira GPU anunciada pelo backend; sem dispositivos, usa CPU. Se o backend não oferecer `--device`, sua própria seleção é preservada. Escolhas manuais de GPU/CPU continuam respeitadas. A seleção automática não estima se os dois modelos cabem juntos na VRAM; use Testar modo para verificar Resident.
+
+## Fotos com memória YAML
+
+Com llama-server e `main_mmproj` configurado, o chat aceita imagens PNG/JPEG/GIF em mensagens OpenAI `image_url` com data URL base64. A interface anuncia visão quando esse modo está disponível. Até quatro imagens por mensagem, 10 MiB por arquivo e 40 megapixels. Endereços remotos não são baixados.
+
+O principal produz uma descrição breve. O HAME preserva os bytes originais em `data/context/<sessao>/media/<sha256>.<ext>` e cria `<sha256>.yaml` com descrição, hash, modelo/projetor e `image_uri`. O compilador lê YAML junto dos demais arquivos de contexto e preserva referências pertinentes durante a compactação. A foto não é embutida no resumo nem passada ao compilador textual.
+
+`GET /hame/media?session_id=<sessao>&file=<sha256>.png` devolve o original; a mesma rota aceita o arquivo `.yaml`. A recuperação da memória trabalha com descrição e referência. Reanalisar visualmente o original exige enviá-lo novamente ao modelo; a referência sozinha não faz o modelo enxergar a foto. A descrição pode omitir ou inventar detalhes e é marcada como gerada pelo modelo. CLI não aceita anexos neste fluxo.
+
+O contexto normal da conversa e o compilador continuam textuais, usando a descrição e o vínculo ao original.
+
+Para não perder o vínculo por omissão do compilador, o HAME reinjeta até duas referências de fotos no contrato compilado, por correspondência de palavras da intenção de busca com a descrição; desempate pela data mais recente. O catálogo YAML completo permanece no disco. O orçamento de memória é respeitado: primeiro reduz trechos sintetizados, preservando os vínculos; se eles ainda não couberem, a compactação falha sem substituir o snapshot ativo.
+
+## Data e hora do sistema
+
+O HAME fornece ao principal uma leitura de data/hora local do sistema (`HAME_RUNTIME_DATETIME`) em cada mensagem, incluindo após compactação. A leitura substitui a anterior na instrução de sistema e entra no orçamento de tokens. Funciona em server e CLI, sem depender de tool-calling ou --tools all. O modelo recebe o instante da requisição, não um relógio continuamente atualizado.
+
+`GET /hame/get_datetime` consulta a mesma fonte e retorna datetime ISO 8601, date, time, timezone, utc_offset_seconds, unix e source=system_clock. A rota não usa cache. O relógio e o fuso são os da máquina onde o HAME executa. Esta funcionalidade não implementa execução genérica de ferramentas nem registra get_datetime no endpoint /tools.

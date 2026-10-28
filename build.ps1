@@ -11,4 +11,4 @@ go vet ./...
 if ($LASTEXITCODE -ne 0) { throw 'Static analysis failed' }
 go build -trimpath -ldflags '-s -w' -o HAME.exe .
 if ($LASTEXITCODE -ne 0) { throw 'Build failed' }
-Write-Host 'HAME 0.9 RC compiled. Run Configurar-HAME.cmd or Iniciar-HAME.cmd.'
+Write-Host 'HAME 0.91 RC compiled. Run Configurar-HAME.cmd or Iniciar-HAME.cmd.'

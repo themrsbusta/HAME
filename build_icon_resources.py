@@ -15,9 +15,9 @@ def block(key,value=b'',children=b'',text=False):
  header+=b'\0'*((-len(header))%4);data=header+value;data+=b'\0'*((-len(data))%4);data+=children
  return struct.pack('<H',len(data))+data[2:]
 strings=b''
-for key,value in [('CompanyName','Busta Supastar'),('FileDescription','HAME 0.9 RC'),('FileVersion','0.9 RC'),('ProductName','HAME'),('ProductVersion','0.9 RC'),('LegalCopyright','Copyright (c) 2026 Busta Supastar; BSD-3-Clause')]:
+for key,value in [('CompanyName','Busta Supastar'),('FileDescription','HAME 0.91 RC'),('FileVersion','0.91 RC'),('ProductName','HAME'),('ProductVersion','0.91 RC'),('LegalCopyright','Copyright (c) 2026 Busta Supastar; BSD-3-Clause')]:
  child=block(key,utf16(value),text=True);strings+=child+b'\0'*((-len(child))%4)
-fixed=struct.pack('<13I',0xFEEF04BD,0x10000,9,0,9,0,0x3f,0,0x40004,1,0,0,0)
+fixed=struct.pack('<13I',0xFEEF04BD,0x10000,91,0,91,0,0x3f,0,0x40004,1,0,0,0)
 version=block('VS_VERSION_INFO',fixed,block('StringFileInfo',children=block('040904B0',children=strings))+block('VarFileInfo',children=block('Translation',struct.pack('<HH',0x409,1200))))
 payloads=images+[bytes(group),version]
 tree={3:{i+1:{1033:i} for i in range(count)},14:{1:{1033:count}},16:{1:{1033:count+1}}}
