@@ -1,0 +1,31 @@
+# Runtime configuration and private conversations
+/config.json
+/data/
+/validation*-data/
+*.log
+# Builds and intermediate resources
+*.exe
+*.dll
+*.syso
+*.res
+*.obj
+*.zip
+/work/
+/dist/
+/build/
+/Build/
+/backup*/
+# Tooling
+__pycache__/
+*.py[cod]
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+.env
+.env.*
+!.env.example
+
+# Temporary configurator probes
+/.hame-config-check-*.json
+/cli-task-*/

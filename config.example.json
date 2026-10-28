@@ -1,0 +1,15 @@
+{
+  "backend": "server",
+  "llama_server": "",
+  "llama_cli": "",
+  "main_model": "",
+  "compiler_model": "",
+  "main_device": "auto",
+  "compiler_device": "auto",
+  "data_dir": "data",
+  "listen": "127.0.0.1:8088",
+  "mode": "constrained",
+  "context_tokens": 8192,
+  "output_tokens": 1024,
+  "gpu_layers": "auto"
+}
