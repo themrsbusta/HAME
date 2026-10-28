@@ -1,20 +1,30 @@
-# Runtime configuration and private conversations
-/config.json
-/data/
-/validation*-data/
+# Private runtime configuration and conversations (at any depth)
+config.json
+data/
+data-*/
+validation*-data/
 *.log
-# Builds and intermediate resources
+*.gguf
+.env
+.env.*
+!.env.example
+# Local builds and packages
+/build/
+/Build/
+/dist/
+/work/
+/backup*/
 *.exe
 *.dll
 *.syso
 *.res
 *.obj
 *.zip
-/work/
-/dist/
-/build/
-/Build/
-/backup*/
+*.tar.gz
+*.test
+/hame
+/.hame-config-check-*.json
+/cli-task-*/
 # Tooling
 __pycache__/
 *.py[cod]
@@ -22,13 +32,3 @@ __pycache__/
 .idea/
 .DS_Store
 Thumbs.db
-.env
-.env.*
-!.env.example
-
-# Temporary configurator probes
-/.hame-config-check-*.json
-/cli-task-*/
-
-/build/
-*.test

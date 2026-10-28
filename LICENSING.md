@@ -6,4 +6,4 @@ A interface oficial e os componentes derivados do llama.cpp conservam a licença
 
 Os modelos GGUF e os binários/DLLs do llama.cpp não estão incluídos no pacote de distribuição ou no código-fonte preparado; suas licenças devem ser observadas separadamente se forem redistribuídos.
 
-A arte do ícone foi gerada para o projeto com image_gen integrado. O PNG original e o prompt estão em assets/.
+A arte do ícone foi gerada para o projeto com image_gen integrado. O ícone distribuído está em `assets/HAME.ico`; o PNG original e o prompt de geração não foram fornecidos nesta entrega.
