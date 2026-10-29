@@ -1,6 +1,12 @@
-# HAME 1.01
+# HAME 1.02
 
 Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema.
+
+## Correções da 1.02
+
+- Acentos e separadores corrigidos no painel da WebUI e no histórico de alterações.
+- Scripts PowerShell distribuídos com UTF-8 BOM, para que o configurador mostre português corretamente no Windows PowerShell 5.1.
+- Declaração UTF-8 antecipada no HTML e testes de regressão para os textos servidos e a codificação dos scripts.
 
 ## Novidades da 1.01
 
@@ -41,10 +47,10 @@ O código usa apenas a biblioteca padrão do Go. Mínimo declarado: Go 1.18. Da 
 - `configs/`: exemplos públicos, sem caminhos pessoais.
 - `scripts/windows/` e `scripts/unix/`: configurador e iniciadores; os scripts de build ficam em `scripts/` e o gerador de recursos em `scripts/tools/`.
 - `assets/`: ícone do aplicativo; `docs/`: arquitetura, API, portabilidade e validação.
-- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.01**.
+- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.02**.
 - `build/`: saídas locais ignoradas pelo Git. Modelos, llama.cpp, configurações pessoais e históricos não pertencem ao código-fonte.
 
-A versão 1.01 acrescenta execução de ferramentas à base 1.0, que reorganizou a 0.92 RC. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.
+A versão 1.02 corrige a codificação dos textos da 1.01, que acrescentou execução de ferramentas à base 1.0. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.
 
 ## Processos e memória
 

@@ -1,4 +1,11 @@
-# Validação — HAME 1.01
+# Validação — HAME 1.02
+
+## Verificações da 1.02 — 2026-10-29
+
+- Reparados os textos que já estavam gravados com codificação corrompida na WebUI e no CHANGELOG. O JavaScript vendorizado foi inspecionado e suas tabelas Unicode válidas foram preservadas.
+- Scripts PowerShell distribuídos em UTF-8 BOM; o inicializador usa Windows PowerShell 5.1, que não reconhece UTF-8 sem BOM automaticamente.
+- Testes de regressão conferem acentos, charset HTTP, declaração UTF-8 antes dos scripts e BOM em todos os scripts PowerShell. Suíte Go e vet aprovados; quatro alvos compilados pela Mica via HAME.
+- Autoteste do configurador executado no Windows PowerShell 5.1 com renderização das duas abas; acentos em memória, configuração, execução, sessão e recuperação conferidos visualmente.
 
 ## Verificações da 1.01 — 2026-10-29
 

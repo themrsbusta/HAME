@@ -25,7 +25,7 @@ import (
 //go:embed all:webui
 var assets embed.FS
 
-const Version = "1.01"
+const Version = "1.02"
 const CompiledSchema = `{"type":"object","properties":{"system_instruction":{"type":"string","minLength":1},"context_bundle":{"type":"object","properties":{"retrieved_knowledge":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"fact":{"type":"string"}},"required":["source","fact"],"additionalProperties":false}},"conversation_lineage":{"type":"array","items":{"type":"string"}}},"required":["retrieved_knowledge","conversation_lineage"],"additionalProperties":false},"response_format":{"type":"string","minLength":1}},"required":["system_instruction","context_bundle","response_format"],"additionalProperties":false}`
 
 type Config struct {

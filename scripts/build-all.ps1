@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 $root = Split-Path -Parent $PSScriptRoot
 Push-Location -LiteralPath $root
 $previousGoos=$env:GOOS; $previousGoarch=$env:GOARCH; $previousCgo=$env:CGO_ENABLED

@@ -1,4 +1,4 @@
-param([string]$ConfigPath = (Join-Path $PSScriptRoot 'config.json'), [switch]$Managed, [switch]$SelfTest, [string]$EnginePath = "", [string]$RenderPath = "")
+﻿param([string]$ConfigPath = (Join-Path $PSScriptRoot 'config.json'), [switch]$Managed, [switch]$SelfTest, [string]$EnginePath = "", [string]$RenderPath = "")
 $ErrorActionPreference = 'Stop'
 Add-Type -AssemblyName System.Windows.Forms
 Add-Type -AssemblyName System.Drawing
@@ -8,7 +8,7 @@ $base = Split-Path -Parent $ConfigPath
 $exe = Join-Path $PSScriptRoot 'HAME.exe'
 if($EnginePath){$exe=$EnginePath}
 $form = New-Object Windows.Forms.Form
-$form.Text = 'HAME 1.01 - Configurador'
+$form.Text = 'HAME 1.02 - Configurador'
 $form.AutoScaleMode = [Windows.Forms.AutoScaleMode]::None
 $form.ClientSize = New-Object Drawing.Size(940,800)
 $form.StartPosition = 'CenterScreen'

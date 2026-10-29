@@ -1,30 +1,36 @@
-# AlteraÃ§Ãµes
+# Alterações
 
-## 0.92 RC â€” 2026-10-27
+## 1.02 — 2026-10-29
 
-- Corrigido gatilho: saturaÃ§Ã£o ou recuperaÃ§Ã£o explÃ­cita, sem compactar a cada resposta.
-- Contagem real do prompt formatado no server; tokenizer auxiliar e reserva explÃ­cita no CLI.
-- Constrained mantÃ©m principal entre interaÃ§Ãµes e alterna apenas ao compactar.
-- Resident mantÃ©m ambos os processos; limpa e verifica slot sem descarregar principal.
+- Corrigidos acentos e separadores corrompidos na WebUI e neste histórico.
+- Scripts PowerShell com UTF-8 BOM para leitura correta pelo Windows PowerShell 5.1.
+- Charset UTF-8 declarado antes dos scripts HTML; testes protegem os textos da interface e a codificação dos scripts.
+
+## 0.92 RC — 2026-10-27
+
+- Corrigido gatilho: saturação ou recuperação explícita, sem compactar a cada resposta.
+- Contagem real do prompt formatado no server; tokenizer auxiliar e reserva explícita no CLI.
+- Constrained mantém principal entre interações e alterna apenas ao compactar.
+- Resident mantém ambos os processos; limpa e verifica slot sem descarregar principal.
 - context_state volta a ser produzido semanticamente pelo modelo principal.
-- CompilaÃ§Ã£o incremental com fontes novas/alteradas e recuperaÃ§Ã£o completa opcional.
-- GUI organizada em abas, com polÃ­ticas, reservas, limite de memÃ³ria, prefill, aÃ§Ãµes manuais e teste real de modo.
-- Indicadores e controles adicionados como adaptaÃ§Ã£o Ã  WebUI oficial.
-- Logotipo do raio substituÃ­do pelo Ã­cone do HAME nos componentes nativos; favicon mantido.
-- MigraÃ§Ã£o de configuraÃ§Ãµes e preservaÃ§Ã£o de preferÃªncias; dados antigos nÃ£o modificados.
+- Compilação incremental com fontes novas/alteradas e recuperação completa opcional.
+- GUI organizada em abas, com políticas, reservas, limite de memória, prefill, ações manuais e teste real de modo.
+- Indicadores e controles adicionados como adaptação à WebUI oficial.
+- Logotipo do raio substituído pelo ícone do HAME nos componentes nativos; favicon mantido.
+- Migração de configurações e preservação de preferências; dados antigos não modificados.
 - Nova pasta independente para rollback da 0.9 RC.
 
-A versÃ£o arquitetural da especificaÃ§Ã£o original continua 1.3; a versÃ£o do aplicativo Ã© 0.92 RC.
+A versão arquitetural da especificação original continua 1.3; a versão do aplicativo é 0.92 RC.
 
-### Fotos e memÃ³ria YAML
+### Fotos e memória YAML
 
-- Imagens no server com mmproj: original preservado, descriÃ§Ã£o YAML e rota local de recuperaÃ§Ã£o.
-- Compilador lÃª YAML; referÃªncias selecionadas preservadas fora da sÃ­ntese, dentro do orÃ§amento.
-- Teste real apÃ³s compactaÃ§Ã£o e reinÃ­cio recupera FOTO-091 e link do original.
+- Imagens no server com mmproj: original preservado, descrição YAML e rota local de recuperação.
+- Compilador lê YAML; referências selecionadas preservadas fora da síntese, dentro do orçamento.
+- Teste real após compactação e reinício recupera FOTO-091 e link do original.
 
 ## Portabilidade 0.92 RC
 
-- Windows x64 preservado com WinForms e detecÃ§Ã£o.
-- Linux x64/ARM64 e Termux Android ARM64: configuraÃ§Ã£o manual, sem sondagem na inicializaÃ§Ã£o.
+- Windows x64 preservado com WinForms e detecção.
+- Linux x64/ARM64 e Termux Android ARM64: configuração manual, sem sondagem na inicialização.
 - Grupos de processos Unix e tratamento SIGTERM/SIGHUP/Ctrl+C.
-- Exemplos JSON explÃ­citos e scripts de compilaÃ§Ã£o/execuÃ§Ã£o por alvo.
+- Exemplos JSON explícitos e scripts de compilação/execução por alvo.
