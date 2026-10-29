@@ -1,4 +1,4 @@
-# Publicação do HAME 1.0
+# Publicação do HAME 1.01
 
 Repositório: https://github.com/themrsbusta/HAME — branch principal `main`.
 

@@ -1,4 +1,4 @@
-# Arquitetura — HAME 1.0
+# Arquitetura — HAME 1.01
 
 HAME é um gateway Go entre clientes compatíveis com chat completions e processos externos do llama.cpp. A WebUI vendorizada é embutida no binário por `cmd/hame/main.go`, com `//go:embed all:webui`. O gateway serve os arquivos e adapta a conversa ao contexto ativo da sessão.
 
@@ -8,4 +8,4 @@ No modo Constrained, o principal permanece ativo entre turnos e os modelos alter
 
 Windows mantém configurador e sondagem explícita das capacidades do motor. Linux e Android/Termux usam configuração manual, com caminhos, dispositivos, camadas GPU e capacidades declarados. Os motores e modelos não são distribuídos neste repositório.
 
-A especificação original em `specs/HAME_1.3.yaml` descreve a arquitetura pretendida; sua numeração não é a versão do aplicativo e não comprova implementação de todos os objetivos. A 1.0 preserva as limitações da 0.92 RC: não executa ferramentas genéricas, referências de fotos não causam nova análise visual e memória sintetizada pode perder detalhes. Consulte `API.md`, `PORTABILITY.md` e `VALIDATION.md`.
+A especificação original em `specs/HAME_1.3.yaml` descreve a arquitetura pretendida; sua numeração não é a versão do aplicativo e não comprova implementação de todos os objetivos. Ferramentas nativas agora têm um ciclo opcional no chat do principal: descoberta real via `/tools`, validação, execução estruturada, resultado `role=tool` e nova inferência, com limite e registro durável. Compilador, extração de estado e descrição de imagens não executam ferramentas. Referências de fotos não causam nova análise visual e memória sintetizada pode perder detalhes. Consulte `API.md`, `PORTABILITY.md` e `VALIDATION.md`.

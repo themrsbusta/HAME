@@ -1,6 +1,16 @@
-# HAME 1.0
+# HAME 1.01
 
 Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema.
+
+## Novidades da 1.01
+
+- **Execução real de ferramentas pelo chat:** o HAME agora descobre as ferramentas nativas do llama-server, envia suas definições ao modelo, executa chamadas estruturadas e devolve os resultados para ele continuar a tarefa.
+- Leitura, busca, escrita e edição de arquivos, consulta do ambiente e comandos de shell disponíveis por configuração explícita com `tools` e `tool_cwd`. `["all"]` habilita as sete ferramentas nativas conhecidas; sem essa configuração, continuam desativadas.
+- Chamadas e resultados preservados no histórico, com registro antes e depois de cada execução em `data/tool-audit`. Limite de chamadas, timeout, validação de argumentos e proteção contra requisições de outros sites.
+- Ferramentas somente no chat principal; compilador de memória, extração de estado e descrição de imagens continuam sem executar ações.
+- Validado no Windows com llama.cpp b11946: o modelo criou e leu um arquivo de teste e executou uma consulta administrativa de leitura (`fltmc filters`) com código de saída 0. A mesma consulta sem elevação recebeu acesso negado. O HAME não exige administrador para tarefas comuns; comandos herdam os privilégios com que ele foi iniciado.
+
+Veja [a configuração e os limites das ferramentas](docs/API.md#ferramentas-nativas-do-llama-server). O diretório inicial não é sandbox e a API nativa do llama.cpp é experimental.
 
 ## Windows
 
@@ -31,15 +41,17 @@ O código usa apenas a biblioteca padrão do Go. Mínimo declarado: Go 1.18. Da 
 - `configs/`: exemplos públicos, sem caminhos pessoais.
 - `scripts/windows/` e `scripts/unix/`: configurador e iniciadores; os scripts de build ficam em `scripts/` e o gerador de recursos em `scripts/tools/`.
 - `assets/`: ícone do aplicativo; `docs/`: arquitetura, API, portabilidade e validação.
-- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.0**.
+- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.01**.
 - `build/`: saídas locais ignoradas pelo Git. Modelos, llama.cpp, configurações pessoais e históricos não pertencem ao código-fonte.
 
-A versão 1.0 reorganiza e identifica a base 0.92 RC, mantendo suas funcionalidades e limitações. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.
+A versão 1.01 acrescenta execução de ferramentas à base 1.0, que reorganizou a 0.92 RC. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.
 
 ## Processos e memória
 
 Windows mantém Job Object para seus workers. Linux/Termux usa grupos de processos próprios, trata Ctrl+C, SIGTERM e SIGHUP e mata os grupos ao sair. Não encerra outros processos de llama. Linux também solicita SIGKILL do worker direto quando o processo/thread pai morre; um SIGKILL abrupto do HAME não oferece garantia universal de limpeza de todos os netos. Nenhum sistema garante execução após o Android forçar a parada do aplicativo.
 
-Constrained alterna principal e compilador somente quando há compactação. Resident mantém pesos e apaga o KV/slot real, quando o backend oferece esse mecanismo. Resumos podem omitir informações; originais ficam no disco. Fotos usam server com mmproj compatível, arquivos originais e descrições YAML; até duas referências pertinentes são preservadas deterministicamente na memória compactada. Uma referência não reanalisa a foto sozinha. Ferramentas genéricas não são executadas pelo gateway; data/hora do sistema é fornecida a cada turno.
+Constrained alterna principal e compilador somente quando há compactação. Resident mantém pesos e apaga o KV/slot real, quando o backend oferece esse mecanismo. Resumos podem omitir informações; originais ficam no disco. Fotos usam server com mmproj compatível, arquivos originais e descrições YAML; até duas referências pertinentes são preservadas deterministicamente na memória compactada. Uma referência não reanalisa a foto sozinha. Data/hora do sistema é fornecida a cada turno.
+
+Ferramentas nativas são opcionais no backend server local: configure `tools` (nomes explícitos ou `["all"]`) e `tool_cwd` absoluto no JSON. O gateway descobre as definições reais, executa chamadas estruturadas, devolve seus resultados ao principal e preserva o ciclo no histórico e em `data/tool-audit`. O compilador e a análise de imagens não executam ferramentas. São ações com os privilégios do HAME; o diretório inicial não é sandbox. Veja os limites, requisitos e detalhes da API experimental em docs/API.md. Sem `tools`, o comportamento anterior permanece.
 
 Veja docs/API.md, docs/ARCHITECTURE.md, docs/PORTABILITY.md e docs/VALIDATION.md. A especificação original permanece em specs/HAME_1.3.yaml.

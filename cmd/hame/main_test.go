@@ -89,7 +89,7 @@ func newFixture(t *testing.T, compiler bool) *fixture {
 			} else {
 				f.answers++
 			}
-			ioJSON(w, map[string]any{"choices": []any{map[string]any{"message": Message{"assistant", content}}}})
+			ioJSON(w, map[string]any{"choices": []any{map[string]any{"message": Message{Role: "assistant", Content: content}}}})
 		default:
 			http.NotFound(w, r)
 		}
@@ -362,7 +362,7 @@ func TestCommittedExchangeReplayedAfterSnapshotInterruption(t *testing.T) {
 	}
 	dir := filepath.Join(e.cfg.Data, "context", "test")
 	name := "99999999999999999999.json"
-	pair := []Message{{"user", "committed before crash"}, {"assistant", "saved reply"}}
+	pair := []Message{{Role: "user", Content: "committed before crash"}, {Role: "assistant", Content: "saved reply"}}
 	if err = atomicJSON(filepath.Join(dir, name), pair); err != nil {
 		t.Fatal(err)
 	}

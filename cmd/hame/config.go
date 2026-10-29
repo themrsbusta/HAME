@@ -234,6 +234,15 @@ func load(path string) (Config, error) {
 	c.MainMMProj = resolve(c.MainMMProj)
 	c.CompilerModel = resolve(c.CompilerModel)
 	c.Data = resolve(c.Data)
+	if c.ToolMaxCalls == 0 {
+		c.ToolMaxCalls = 8
+	}
+	if c.ToolTimeout == 0 {
+		c.ToolTimeout = 30
+	}
+	if err := c.validateTools(); err != nil {
+		return c, err
+	}
 	if c.Tokenizer == "" && !manualPlatform {
 		c.Tokenizer = filepath.Join(filepath.Dir(c.executable()), "llama-tokenize.exe")
 	} else {
@@ -262,6 +271,12 @@ func (e *Engine) validate(ctx context.Context) error {
 	}
 	if err = validateProfile(profile); err != nil {
 		return err
+	}
+	if err = e.cfg.validateTools(); err != nil {
+		return err
+	}
+	if e.cfg.toolsEnabled() && !profile.Flags["--tools"] {
+		return errors.New("llama-server não anuncia --tools")
 	}
 	for _, path := range []string{e.cfg.MainModel, e.cfg.CompilerModel} {
 		if path == "" {

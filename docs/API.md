@@ -1,4 +1,4 @@
-# API — HAME 1.0
+# API — HAME 1.01
 
 POST /v1/chat/completions preserva o formato anterior e acrescenta compile e retrieve opcionais. session_id ou X-Conversation-Id identifica a sessão. Apenas a última mensagem user vinda da WebUI é usada; o contexto ativo pertence ao HAME.
 
@@ -28,3 +28,24 @@ Server com `main_mmproj`: a última mensagem user pode conter `content: [{"type"
 O compilador inclui `.yaml`/`.yml` em suas fontes incrementais. O catálogo fica fora do KV cache e da síntese. Até duas referências pertinentes são reinjetadas deterministicamente na memória compactada. Recuperar a descrição/link não equivale a uma nova análise visual do original.
 
 GET /hame/get_datetime: relógio do sistema, ISO 8601/fuso/offset/Unix; não usa cache. O principal recebe automaticamente uma leitura atualizada a cada turno. Não é um ciclo genérico de chamadas de ferramentas.
+
+## Ferramentas nativas do llama-server
+
+Opt-in no `config.json` (desativado quando `tools` está ausente):
+
+```json
+{
+  "tools": ["exec_shell_command", "read_file"],
+  "tool_cwd": "C:\\HAME\\workspace",
+  "tool_max_calls": 8,
+  "tool_timeout_seconds": 30
+}
+```
+
+`["all"]` habilita as ferramentas conhecidas anunciadas pelo servidor: read_file, file_glob_search, grep_search, exec_shell_command, write_file, edit_file e get_info. Requer backend server local gerenciado pelo HAME e suporte real a `--tools`. O HAME acrescenta esse argumento somente ao principal; não o repita em `main_extra_args`. `tool_cwd` é obrigatório e absoluto; define o diretório inicial, **não** uma sandbox. Comandos herdam os privilégios do processo; habilite apenas em estação local confiável.
+
+`GET /tools` descobre e lista as definições reais do worker. `POST /tools` no HAME é recusado: o executor nativo não é exposto como proxy HTTP. O chat descobre as definições, envia `tools`, valida IDs, nomes e argumentos estruturados, executa cada chamada e devolve `role=tool`/`tool_call_id` antes de continuar a geração. Texto livre nunca é interpretado como comando. Descrições de imagens, extração de estado e compilador não executam ferramentas. Clientes do chat continuam recebendo a resposta textual final, inclusive em SSE; o histórico contém o ciclo completo.
+
+Limite por turno: 1–32 chamadas (padrão 8). Timeout: 1–120 s (padrão 30); o timeout nativo de shell é limitado por essa configuração. O prazo HTTP das outras ferramentas não garante cancelamento de efeitos no servidor. Falha de transporte não gera repetição automática: uma operação pode ter ocorrido. Cada chamada é registrada antes e depois em `data_dir/tool-audit/<sessao>/*.json`; em falha após execução, consulte esse registro antes de repetir a tarefa. Saída de comando com exit code diferente de zero continua sendo um resultado de ferramenta, não sucesso presumido.
+
+O ciclo inclui as definições no orçamento de contexto e interrompe antes de uma nova inferência se não houver espaço. Resultados já executados permanecem no audit mesmo se o turno falhar. O serviço continua em loopback, recusa Host externo, Origin de outro site, chamadas cross-site e POST sem application/json quando ferramentas estão habilitadas. Não há autenticação contra outros programas locais: quem pode chamar o chat pode solicitar ações com os privilégios do HAME. A API interna `/tools` do llama.cpp é experimental e precisa ser revalidada ao trocar de build; validada localmente com b11946.

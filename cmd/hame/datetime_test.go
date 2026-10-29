@@ -11,7 +11,7 @@ import (
 func TestCurrentDatetimeReplacesOldReading(t *testing.T) {
 	zone := time.FixedZone("test-zone", -3*3600)
 	now := time.Date(2031, 2, 3, 4, 5, 6, 0, zone)
-	original := []Message{{"system", "memory"}, {"user", "hello"}, {"assistant", "reply"}}
+	original := []Message{{Role: "system", Content: "memory"}, {Role: "user", Content: "hello"}, {Role: "assistant", Content: "reply"}}
 	first := withDatetime(original, now)
 	next := withDatetime(first, now.Add(24*time.Hour))
 	count := 0

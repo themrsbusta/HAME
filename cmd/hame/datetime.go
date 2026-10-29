@@ -41,7 +41,7 @@ func withDatetime(messages []Message, now time.Time) []Message {
 	if len(result) > 0 && result[0].Role == "system" {
 		result[0].Content += "\n" + reading
 	} else {
-		result = append([]Message{{"system", reading}}, result...)
+		result = append([]Message{{Role: "system", Content: reading}}, result...)
 	}
 	return result
 }

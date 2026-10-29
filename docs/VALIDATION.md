@@ -1,4 +1,16 @@
-# Validação — HAME 1.0
+# Validação — HAME 1.01
+
+## Verificações da 1.01 — 2026-10-29
+
+- Base: checkout novo do repositório público em `e1bcd4d`, com o ciclo de ferramentas implementado no chat principal. WebUI completa e licenças preservadas.
+- Windows x64, Go 1.27.3: suíte `go test ./...`, análise `go vet ./...` e compilação aprovadas. Casos novos cobrem esquema real de `/tools` da build b11946, resultados `role=tool`, histórico persistido, argumentos inválidos/aninhados, nomes não habilitados, IDs duplicados, chamadas em lote, truncamento, limite por turno, erro sem repetição automática e bloqueio de requisições de outros sites.
+- Teste real com Gemma E4B Q4_K_M e llama.cpp b11946 Vulkan: o modelo solicitou `exec_shell_command`, criou um arquivo com marcador e usou `read_file` para conferir o conteúdo. O arquivo real e os registros de ambas as ferramentas foram conferidos fora do modelo.
+- Elevação: o modelo executou `fltmc filters`, operação de leitura administrativa, com listagem real e `[exit code: 0]`. A mesma operação em sessão sem elevação retornou acesso negado. A configuração de execução como administrador é local; os pacotes públicos não forçam elevação.
+- Compilação Windows delegada à Mica pelo próprio HAME e conferida por Gepeto: ferramenta nativa retornou exit code 0; `-version`, FileVersion e ProductVersion identificam `1.01`. Recursos de ícone incluídos.
+- Compilação cruzada para Linux amd64, Linux arm64 e Android arm64 concluída. Esses binários não foram executados localmente em seus sistemas de destino nesta atualização; validação de inferência e ferramentas foi feita no Windows. A automação GitHub testa Windows e Ubuntu a cada push.
+- A API `/tools` do llama.cpp é interna e experimental. O fixture em `cmd/hame/testdata/llama-b11946-tools.json` contém somente as definições públicas das sete ferramentas, sem histórico ou configuração pessoal.
+
+## Histórico da versão 1.0 (relato preservado)
 
 ## Verificações desta atualização — 2026-10-28
 

@@ -37,6 +37,9 @@ func (e *Engine) commonArgs(compiler bool) []string {
 			args = append(args, "--mmproj", e.cfg.MainMMProj)
 		}
 		args = append(args, e.extraMain...)
+		if e.cfg.toolsEnabled() {
+			args = append(args, "--tools", strings.Join(e.cfg.Tools, ","))
+		}
 	}
 	return args
 }

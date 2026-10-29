@@ -1,4 +1,4 @@
-# Portabilidade 1.0
+# Portabilidade 1.01
 
 | Alvo | GOOS | GOARCH | Configuração |
 |---|---|---|---|

@@ -112,10 +112,10 @@ func (e *Engine) testExecutionMode(ctx context.Context) error {
 		if err != nil {
 			return err
 		}
-		if _, _, _, err = e.countMessages(ctx, w, []Message{{"user", "HAME tokenizer compatibility check."}}); err != nil {
+		if _, _, _, err = e.countMessages(ctx, w, []Message{{Role: "user", Content: "HAME tokenizer compatibility check."}}); err != nil {
 			return err
 		}
-		_, err = e.generate(ctx, w, []Message{{"user", "Reply only OK."}}, 16, "")
+		_, err = e.generate(ctx, w, []Message{{Role: "user", Content: "Reply only OK."}}, 16, "")
 		return err
 	}
 	if e.cfg.Mode == "resident" {
@@ -128,7 +128,7 @@ func (e *Engine) testExecutionMode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, _, _, err = e.countMessages(ctx, w, []Message{{"user", "HAME constrained check."}}); err != nil {
+	if _, _, _, err = e.countMessages(ctx, w, []Message{{Role: "user", Content: "HAME constrained check."}}); err != nil {
 		return err
 	}
 	e.main.stop()
@@ -138,7 +138,7 @@ func (e *Engine) testExecutionMode(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	if _, _, _, err = e.countMessages(ctx, compiler, []Message{{"user", "HAME compiler check."}}); err != nil {
+	if _, _, _, err = e.countMessages(ctx, compiler, []Message{{Role: "user", Content: "HAME compiler check."}}); err != nil {
 		return err
 	}
 	e.compiler.stop()

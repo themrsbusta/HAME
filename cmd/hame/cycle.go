@@ -72,7 +72,15 @@ func (e *Engine) prime(ctx context.Context, s Session) error {
 	if err != nil {
 		return err
 	}
-	b, _ := json.Marshal(map[string]any{"messages": s.Messages, "add_generation_prompt": true})
+	body := map[string]any{"messages": s.Messages, "add_generation_prompt": true}
+	defs, err := e.toolDefinitions(ctx, w)
+	if err != nil {
+		return err
+	}
+	if len(defs) > 0 {
+		body["tools"] = defs
+	}
+	b, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, "POST", w.url+"/apply-template", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
 	r, err := e.client.Do(req)
@@ -206,14 +214,11 @@ func (e *Engine) handler() http.Handler {
 		w.WriteHeader(404)
 		io.WriteString(w, `{"error":{"message":"no resumable stream"}}`)
 	})
-	mux.HandleFunc("/tools", func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"tools":[]}`)
-	})
+	mux.HandleFunc("/tools", e.toolsHTTP)
 	mux.HandleFunc("/slots", func(w http.ResponseWriter, r *http.Request) { io.WriteString(w, "[]") })
 	mux.HandleFunc("/hame/media", e.mediaHTTP)
 	mux.HandleFunc("/v1/chat/completions", e.chatHTTP)
-	return mux
+	return e.toolRequestGuard(mux)
 }
 func (e *Engine) chatHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {
@@ -280,5 +285,5 @@ func (e *Engine) chatHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"id": id, "object": "chat.completion", "model": e.displayModel(), "choices": []any{map[string]any{"index": 0, "message": Message{"assistant", reply}, "finish_reason": "stop"}}})
+	json.NewEncoder(w).Encode(map[string]any{"id": id, "object": "chat.completion", "model": e.displayModel(), "choices": []any{map[string]any{"index": 0, "message": Message{Role: "assistant", Content: reply}, "finish_reason": "stop"}}})
 }
