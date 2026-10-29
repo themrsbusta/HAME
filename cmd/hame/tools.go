@@ -45,6 +45,38 @@ type ToolDescriptor struct {
 	Permissions map[string]bool `json:"permissions,omitempty"`
 }
 
+type ToolCatalog struct {
+	Selection   []string         `json:"selection"`
+	Descriptors []ToolDescriptor `json:"descriptors"`
+}
+
+func (e *Engine) cachedToolCatalog() ([]ToolDescriptor, bool) {
+	e.metaMu.RLock()
+	catalog := e.toolCatalog
+	e.metaMu.RUnlock()
+	if catalog == nil && e.cfg.Data != "" {
+		handle, err := os.Open(e.uiCachePath("/__hame_tool_catalog"))
+		if err != nil {
+			return nil, false
+		}
+		defer handle.Close()
+		var saved ToolCatalog
+		if json.NewDecoder(io.LimitReader(handle, 1<<20)).Decode(&saved) != nil {
+			return nil, false
+		}
+		catalog = &saved
+	}
+	if catalog == nil || strings.Join(catalog.Selection, ",") != strings.Join(e.cfg.Tools, ",") || len(catalog.Descriptors) == 0 {
+		return nil, false
+	}
+	for _, d := range catalog.Descriptors {
+		if d.Type != "server" || d.Tool != d.Definition.Function.Name || !e.cfg.allowsTool(d.Tool) {
+			return nil, false
+		}
+	}
+	return catalog.Descriptors, true
+}
+
 func (c *Config) normalizeToolArgs(base string) error {
 	args, err := parseStartupArgs(c.MainExtraArgs)
 	if err != nil {
@@ -236,6 +268,15 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 	if len(defs) == 0 {
 		return nil, errors.New("llama-server não anunciou ferramentas habilitadas")
 	}
+	catalog := &ToolCatalog{Selection: append([]string{}, e.cfg.Tools...), Descriptors: descriptors}
+	if e.cfg.Data != "" {
+		if err = atomicJSON(e.uiCachePath("/__hame_tool_catalog"), catalog); err != nil {
+			return nil, err
+		}
+	}
+	e.metaMu.Lock()
+	e.toolCatalog = catalog
+	e.metaMu.Unlock()
 	w.tools = defs
 	w.toolDescriptors = descriptors
 	return defs, nil
@@ -521,6 +562,12 @@ func (e *Engine) toolsHTTP(w http.ResponseWriter, r *http.Request) {
 	if !e.cfg.toolsEnabled() {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `[]`)
+		return
+	}
+	if catalog, ok := e.cachedToolCatalog(); ok {
+		w.Header().Set("Content-Type", "application/json")
+		w.Header().Set("Cache-Control", "no-store")
+		json.NewEncoder(w).Encode(catalog)
 		return
 	}
 	if err := e.acquire(r.Context()); err != nil {

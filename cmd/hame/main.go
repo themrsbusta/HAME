@@ -116,6 +116,7 @@ type Worker struct {
 }
 type Engine struct {
 	uiMu           sync.Mutex
+	toolCatalog    *ToolCatalog
 	configPath     string
 	configRevision string
 	lifecycle      context.Context

@@ -10,7 +10,42 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestToolCatalogAvailableWhileMotorLockedAfterRestart(t *testing.T) {
+	data, err := os.ReadFile("testdata/llama-b11946-tools.json")
+	if err != nil {
+		t.Fatal(err)
+	}
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		w.Write(data)
+	}))
+	e := &Engine{cfg: Config{Tools: []string{"all"}, Data: t.TempDir()}, client: server.Client()}
+	if _, err = e.toolDefinitions(context.Background(), &Worker{url: server.URL}); err != nil {
+		t.Fatal(err)
+	}
+	server.Close()
+	restarted := &Engine{cfg: e.cfg, client: server.Client()}
+	restarted.mu.Lock()
+	defer restarted.mu.Unlock()
+	done := make(chan *httptest.ResponseRecorder, 1)
+	go func() {
+		response := httptest.NewRecorder()
+		restarted.toolsHTTP(response, httptest.NewRequest("GET", "/tools", nil))
+		done <- response
+	}()
+	select {
+	case response := <-done:
+		var descriptors []ToolDescriptor
+		if response.Code != 200 || json.Unmarshal(response.Body.Bytes(), &descriptors) != nil || len(descriptors) != 7 {
+			t.Fatalf("catalog unavailable: %d %s", response.Code, response.Body.String())
+		}
+	case <-time.After(time.Second):
+		t.Fatal("tool discovery waited for the motor lock instead of using its persistent catalog")
+	}
+}
 
 func TestNativeUICacheSurvivesWorkerUnavailable(t *testing.T) {
 	requests := 0
