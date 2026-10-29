@@ -35,5 +35,8 @@
     "--output-file",
     "--n-predict",
     "--no-escape"
-  ]
+  ],
+  "webui": "embedded",
+  "continuous_history": true,
+  "retrieval_tokens": 512
 }

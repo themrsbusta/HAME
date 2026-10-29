@@ -154,6 +154,10 @@ func (e *Engine) handler() http.Handler {
 	web, _ := fs.Sub(assets, "webui")
 	fileServer := http.FileServer(http.FS(web))
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
+		if e.cfg.WebUI == "upstream" {
+			e.upstreamUIHTTP(w, r)
+			return
+		}
 		w.Header().Set("Cache-Control", "no-store")
 		if _, err := fs.Stat(web, strings.TrimPrefix(r.URL.Path, "/")); err == nil && r.URL.Path != "/" {
 			fileServer.ServeHTTP(w, r)
@@ -165,6 +169,7 @@ func (e *Engine) handler() http.Handler {
 		w.Write(b)
 	})
 	mux.HandleFunc("/hame/get_datetime", datetimeHTTP)
+	mux.HandleFunc("/hame/shim.js", shimHTTP)
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		json.NewEncoder(w).Encode(map[string]string{"status": "ok", "version": Version, "memory_cycle": "saturation_or_retrieval"})
 	})
@@ -172,6 +177,7 @@ func (e *Engine) handler() http.Handler {
 		route := route
 		mux.HandleFunc(route, func(w http.ResponseWriter, r *http.Request) {
 			w.Header().Set("Content-Type", "application/json")
+			w.Header().Set("Cache-Control", "no-store")
 			json.NewEncoder(w).Encode(e.metadata(route))
 		})
 	}

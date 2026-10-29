@@ -25,10 +25,13 @@ import (
 //go:embed all:webui
 var assets embed.FS
 
-const Version = "1.02"
+const Version = "1.1-beta.1"
 const CompiledSchema = `{"type":"object","properties":{"system_instruction":{"type":"string","minLength":1},"context_bundle":{"type":"object","properties":{"retrieved_knowledge":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"fact":{"type":"string"}},"required":["source","fact"],"additionalProperties":false}},"conversation_lineage":{"type":"array","items":{"type":"string"}}},"required":["retrieved_knowledge","conversation_lineage"],"additionalProperties":false},"response_format":{"type":"string","minLength":1}},"required":["system_instruction","context_bundle","response_format"],"additionalProperties":false}`
 
 type Config struct {
+	WebUI              string   `json:"webui,omitempty"`
+	ContinuousHistory  *bool    `json:"continuous_history,omitempty"`
+	RetrievalTokens    int      `json:"retrieval_tokens,omitempty"`
 	Tools              []string `json:"tools,omitempty"`
 	ToolCWD            string   `json:"tool_cwd,omitempty"`
 	ToolMaxCalls       int      `json:"tool_max_calls,omitempty"`
@@ -101,6 +104,7 @@ type Session struct {
 }
 type Worker struct {
 	tools            []ToolDefinition
+	toolDescriptors  []ToolDescriptor
 	cmd              *exec.Cmd
 	done             chan error
 	logfile          *os.File
@@ -111,6 +115,9 @@ type Worker struct {
 	lastPromptTokens int
 }
 type Engine struct {
+	uiMu           sync.Mutex
+	configPath     string
+	configRevision string
 	lifecycle      context.Context
 	cfg            Config
 	mu             sync.Mutex
@@ -367,6 +374,8 @@ func main() {
 	defer removeHandler()
 	setConsoleTitle("HAME " + Version + " — feche esta janela para encerrar os modelos")
 	e := &Engine{cfg: c, client: &http.Client{Timeout: 3 * time.Minute}, lifecycle: ctx}
+	e.configPath, _ = filepath.Abs(*config)
+	e.configRevision = fileRevision(e.configPath)
 	if err = e.validate(ctx); err != nil {
 		log.Printf("Configuração/compatibilidade: %v", err)
 		if *check || manualPlatform {
@@ -391,6 +400,16 @@ func main() {
 		fmt.Println("Configuração válida — " + e.profile.Version)
 		return
 	}
+	var listener net.Listener
+	if !*testMode {
+		listener, err = net.Listen("tcp", c.Listen)
+		if err != nil {
+			log.Printf("Porta %s já está em uso. A configuração salva não foi aplicada. Encerre a instância anterior do HAME e inicie novamente: %v", c.Listen, err)
+			return
+		}
+		defer listener.Close()
+	}
+	e.configRevision = fileRevision(e.configPath)
 	defer e.close()
 	if err = e.initialize(ctx, *testMode); err != nil {
 		log.Printf("Modo incompatível: %v", err)
@@ -407,12 +426,6 @@ func main() {
 	}
 	e.modelName = filepath.Base(c.MainModel)
 	srv := &http.Server{Addr: c.Listen, Handler: e.handler(), ReadHeaderTimeout: 10 * time.Second}
-	listener, err := net.Listen("tcp", c.Listen)
-	if err != nil {
-		log.Print(err)
-		return
-	}
-	defer listener.Close()
 	go func() { <-ctx.Done(); _ = srv.Close() }()
 	log.Printf("HAME %s | motor=%s | modelo=%s | %s", Version, c.Backend, e.displayModel(), c.Listen)
 	log.Print("Ctrl+C ou fechar esta janela: encerra HAME e apenas os workers que ele iniciou.")

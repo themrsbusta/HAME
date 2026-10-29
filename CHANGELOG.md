@@ -1,5 +1,13 @@
 # Alterações
 
+## 1.1 beta 1 — 2026-10-29
+
+- WebUI obtida do llama-server instalado, com script do HAME e cache persistente de assets; interface embutida anterior como alternativa.
+- Histórico contínuo na apresentação, com janela real preservada na API e no painel.
+- Compactação automática antes do limite e recuperação lexical de trechos originais por conversa, com orçamento e auditoria.
+- Normalização de `--tools all` do configurador, descoberta `/tools` no formato nativo e identidade baseada no GGUF selecionado.
+- Testes de cache sem worker, rotas SPA/hash, recuperação após omissão no resumo, isolamento de conversas e limites reais.
+
 ## 1.02 — 2026-10-29
 
 - Corrigidos acentos e separadores corrompidos na WebUI e neste histórico.

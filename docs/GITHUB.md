@@ -1,6 +1,6 @@
-# Publicação do HAME 1.01
+# Publicação do HAME
 
-Repositório: https://github.com/themrsbusta/HAME — branch principal `main`.
+Repositório: https://github.com/themrsbusta/HAME — versão estável na branch `main`; beta 1.1 na branch `beta/1.1`, com Releases marcadas como pré-lançamento.
 
 O conteúdo deste diretório é a raiz do projeto. A WebUI em `cmd/hame/webui` faz parte do código-fonte e deve ser versionada integralmente. Dependências llama.cpp e modelos GGUF são externas.
 

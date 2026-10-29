@@ -17,5 +17,5 @@ Copy-Item -LiteralPath (Join-Path $root 'assets/HAME.ico') -Destination $out -Fo
 if (-not (Test-Path -LiteralPath (Join-Path $out 'config.json'))) {
  Copy-Item -LiteralPath (Join-Path $root 'configs/windows.example.json') -Destination (Join-Path $out 'config.json')
 }
-Write-Host "HAME 1.02 compiled in $out. Run Configurar-HAME.cmd or Iniciar-HAME.cmd there."
+Write-Host "HAME 1.1 beta compiled in $out. Run Configurar-HAME.cmd or Iniciar-HAME.cmd there."
 } finally { Pop-Location }

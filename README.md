@@ -1,6 +1,16 @@
-# HAME 1.02
+# HAME 1.1 beta 1
 
 Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema.
+
+## Beta 1.1: WebUI nativa e histórico contínuo
+
+No backend server, o HAME entrega a WebUI da instalação real do llama-server e injeta `/hame/shim.js`. Um cache persistente dos arquivos estáticos mantém a interface disponível durante a troca entre principal e compilador. A interface embutida anterior permanece como alternativa com `webui: "embedded"` e para CLI.
+
+O navegador mantém a conversa completa; o HAME envia ao modelo somente o contexto ativo. Antes do limite real, compacta a representação textual, preserva os originais e reconstrói o KV. Perguntas seguintes podem recuperar trechos originais por busca lexical, com orçamento próprio. A apresentação da WebUI deixa de usar o histórico total como limite da janela, enquanto `/props` e o painel HAME continuam mostrando a capacidade real. Não há entrada individual infinita nem garantia de recuperação perfeita.
+
+Os padrões do beta são `webui: "upstream"`, `continuous_history: true` e `retrieval_tokens: 512`. O modo contínuo compacta automaticamente mesmo com a política Sob demanda; desative-o para restaurar essa política. `--tools all` no configurador agora também habilita o ciclo do HAME, e `/tools` segue o contrato de descoberta da WebUI nativa. O nome do GGUF configurado prevalece sobre aliases internos. Alterações salvas com o serviço já aberto exigem reiniciá-lo; o painel identifica esse estado.
+
+Leia [os limites e a configuração do beta](docs/BETA_1_1.md). Esta versão é experimental; a 1.02 permanece como versão estável.
 
 ## Correções da 1.02
 
@@ -47,7 +57,7 @@ O código usa apenas a biblioteca padrão do Go. Mínimo declarado: Go 1.18. Da 
 - `configs/`: exemplos públicos, sem caminhos pessoais.
 - `scripts/windows/` e `scripts/unix/`: configurador e iniciadores; os scripts de build ficam em `scripts/` e o gerador de recursos em `scripts/tools/`.
 - `assets/`: ícone do aplicativo; `docs/`: arquitetura, API, portabilidade e validação.
-- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.02**.
+- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão deste beta é **1.1-beta.1**.
 - `build/`: saídas locais ignoradas pelo Git. Modelos, llama.cpp, configurações pessoais e históricos não pertencem ao código-fonte.
 
 A versão 1.02 corrige a codificação dos textos da 1.01, que acrescentou execução de ferramentas à base 1.0. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.

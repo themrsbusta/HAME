@@ -2,14 +2,30 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"testing"
+	"time"
 	"unicode/utf8"
 )
+
+func TestBrowserShimContractWhenNodeAvailable(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("Node.js unavailable; run node --test hame-shim.test.cjs separately")
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	out, err := exec.CommandContext(ctx, node, "--test", "hame-shim.test.cjs").CombinedOutput()
+	if err != nil {
+		t.Fatalf("browser shim tests: %v\n%s", err, out)
+	}
+}
 
 func TestInterfaceUTF8(t *testing.T) {
 	data, err := assets.ReadFile("webui/index.html")

@@ -239,13 +239,20 @@ func cleanCLIOutput(raw, prompt string) (string, error) {
 func (e *Engine) displayModel() string {
 	e.metaMu.RLock()
 	defer e.metaMu.RUnlock()
+	if e.cfg.MainURL == "" && e.cfg.MainModel != "" {
+		return modelFileName(e.cfg.MainModel)
+	}
 	if e.modelName != "" {
 		return e.modelName
 	}
 	if e.cfg.MainModel != "" {
-		return filepath.Base(e.cfg.MainModel)
+		return modelFileName(e.cfg.MainModel)
 	}
 	return "modelo não configurado"
+}
+func modelFileName(name string) string {
+	parts := strings.Split(strings.ReplaceAll(name, "\\", "/"), "/")
+	return parts[len(parts)-1]
 }
 func (e *Engine) refreshMetadata(ctx context.Context, w *Worker) {
 	req, _ := http.NewRequestWithContext(ctx, "GET", w.url+"/props", nil)
@@ -292,6 +299,8 @@ func (e *Engine) metadata(route string) any {
 	props["model_path"] = e.cfg.MainModel
 	props["build_info"] = "HAME " + Version
 	props["ui_settings"] = map[string]any{"model": name}
+	props["role"] = "model"
+	props["hame"] = e.configurationState()
 	if defaults, ok := props["default_generation_settings"].(map[string]any); ok {
 		defaults["n_ctx"] = e.cfg.Context
 	}

@@ -19,5 +19,8 @@
   "memory_policy": "hybrid",
   "prefill_compiled_context": true,
   "main_extra_args": "",
-  "main_mmproj": ""
+  "main_mmproj": "",
+  "webui": "upstream",
+  "continuous_history": true,
+  "retrieval_tokens": 512
 }

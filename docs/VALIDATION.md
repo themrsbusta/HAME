@@ -1,4 +1,13 @@
-# Validação — HAME 1.02
+# Validação — HAME 1.1 beta
+
+## Verificações do beta 1.1 — 2026-10-29
+
+- A Mica executou a suíte Go, `go vet`, testes JavaScript do shim e compilação dos quatro alvos por ferramentas reais do HAME. Recursos Windows identificam `1.1.0.1` / `1.1-beta.1`.
+- Testes cobrem cache persistente sem worker disponível, injeção antes dos módulos, rotas SPA e hash, sessões isoladas, redução do histórico transportado, janela real preservada na API, `/tools` no formato nativo e identidade de um GGUF fictício diferente de Gemma.
+- Recuperação testada com um fato deliberadamente omitido do resumo, referências originais auditadas e isolamento de outra conversa. Entrada individual grande demais continua recusada antes da inferência.
+- Teste real Windows com Gemma E4B Q4_K_M, compilador E2B Q4_K_M e llama.cpp b11946 Vulkan: compactação automática por saturação observada, com quatro mensagens originais preservadas. A API e os logs confirmaram a troca de workers.
+- Navegador real: HTML e bundle obtidos do llama-server instalado, shim injetado, sete ferramentas descobertas, identidade com Q4_K_M e resposta `BETA-UI-OK` visível na conversa.
+- A instalação beta fica em pasta separada, sem alterar a instalação estável nem os modelos originais. Os pacotes ARM64/Android são compilações cruzadas; não foram executados em hardware de destino.
 
 ## Verificações da 1.02 — 2026-10-29
 

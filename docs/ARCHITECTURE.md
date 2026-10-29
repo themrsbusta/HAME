@@ -1,6 +1,8 @@
-# Arquitetura — HAME 1.01
+# Arquitetura — HAME 1.1 beta
 
-HAME é um gateway Go entre clientes compatíveis com chat completions e processos externos do llama.cpp. A WebUI vendorizada é embutida no binário por `cmd/hame/main.go`, com `//go:embed all:webui`. O gateway serve os arquivos e adapta a conversa ao contexto ativo da sessão.
+HAME é um gateway Go entre clientes compatíveis com chat completions e processos externos do llama.cpp. No beta, o backend server obtém a WebUI do llama-server realmente instalado, mantém cache dos assets e injeta `hame-shim.js` antes dos módulos do frontend. O cache é atendido sem adquirir o lock do motor, preservando a interface durante a troca de workers. A WebUI vendorizada permanece embutida como alternativa e para o backend CLI.
+
+O navegador mantém o histórico visual; o script envia somente a nova mensagem user, com identidade estável por conversa. A janela real da API permanece correta. Só a apresentação da WebUI deixa de limitar a conversa pela soma do histórico inteiro. Antes da janela real encher, o gateway sintetiza a memória e reconstrói o KV. Após compactação, uma busca lexical limitada à mesma conversa pode reinjetar trechos originais; eles são transitórios, não substituem os originais nem se acumulam no snapshot ativo.
 
 O principal responde ao usuário e produz o estado semântico da conversa. O compilador sintetiza as fontes persistidas quando o orçamento de contexto exige compactação ou quando há solicitação explícita de recuperação. Originais, histórico e metadados ficam no diretório de dados configurado; sínteses podem omitir informação.
 

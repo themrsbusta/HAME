@@ -28,5 +28,8 @@
     "--host",
     "--port",
     "--parallel"
-  ]
+  ],
+  "webui": "upstream",
+  "continuous_history": true,
+  "retrieval_tokens": 512
 }

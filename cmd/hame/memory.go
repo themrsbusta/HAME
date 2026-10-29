@@ -621,10 +621,10 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	if policy == "" {
 		policy = "hybrid"
 	}
-	if retrieve && policy == "automatic" && !force {
+	if retrieve && policy == "automatic" && !force && !e.continuousHistory() {
 		return "", errors.New("política automática não aciona recuperação por pergunta; use o comando manual ou política híbrida")
 	}
-	automatic := policy != "on_demand" && u.Percent >= float64(threshold)
+	automatic := (policy != "on_demand" || e.continuousHistory()) && u.Percent >= float64(threshold)
 	if force || retrieve || automatic {
 		reason := "saturation"
 		if force {
@@ -649,7 +649,15 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		return "", fmt.Errorf("contexto cheio (%d/%d): solicite compactação manual", u.Total, e.cfg.Context)
 	}
 	e.status(id, "responding", nil)
-	reply, trace, err := e.chatWithTools(ctx, w, id, candidate)
+	promptCandidate := candidate
+	if e.continuousHistory() && s.Compactions > 0 {
+		promptCandidate, err = e.withRetrievedHistory(ctx, w, id, user, candidate)
+		if err != nil {
+			e.status(id, "error", err)
+			return "", err
+		}
+	}
+	reply, trace, err := e.chatWithTools(ctx, w, id, promptCandidate)
 	if err != nil {
 		e.status(id, "error", err)
 		return "", err
@@ -668,7 +676,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	if err = atomicJSON(e.path(id, ".json"), s); err != nil {
 		return "", err
 	}
-	s.Usage, err = e.usage(ctx, w, s.Messages, e.reserve())
+	s.Usage, err = e.usage(ctx, w, append(promptCandidate, trace...), e.reserve())
 	if err != nil {
 		s.Usage = u
 		s.Usage.Exact = false

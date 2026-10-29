@@ -22,7 +22,7 @@ func (e *Engine) runtimeHTTP(w http.ResponseWriter, r *http.Request) {
 		_ = json.Unmarshal(b, &status)
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"version": Version, "backend": e.cfg.Backend, "mode": e.cfg.Mode, "memory_policy": e.cfg.Policy, "threshold_percent": e.cfg.Threshold, "session_id": id, "status": status, "audit": audit, "compiled_memory_max_tokens": e.memoryLimit(), "prefill": e.prefillEnabled() && e.cfg.Backend != "cli"})
+	json.NewEncoder(w).Encode(map[string]any{"configuration": e.configurationState(), "version": Version, "backend": e.cfg.Backend, "mode": e.cfg.Mode, "memory_policy": e.cfg.Policy, "threshold_percent": e.cfg.Threshold, "session_id": id, "status": status, "audit": audit, "compiled_memory_max_tokens": e.memoryLimit(), "prefill": e.prefillEnabled() && e.cfg.Backend != "cli"})
 }
 func (e *Engine) compactHTTP(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "POST" {

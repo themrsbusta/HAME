@@ -35,6 +35,95 @@ type ToolDefinition struct {
 	} `json:"function"`
 }
 
+// Keep the llama.cpp descriptor shape consumed by the bundled WebUI.
+type ToolDescriptor struct {
+	Tool        string          `json:"tool"`
+	Type        string          `json:"type"`
+	Definition  ToolDefinition  `json:"definition"`
+	DisplayName string          `json:"display_name,omitempty"`
+	UsesCWD     bool            `json:"uses_cwd"`
+	Permissions map[string]bool `json:"permissions,omitempty"`
+}
+
+func (c *Config) normalizeToolArgs(base string) error {
+	args, err := parseStartupArgs(c.MainExtraArgs)
+	if err != nil {
+		return err
+	}
+	var remaining []string
+	var found []string
+	for i := 0; i < len(args); i++ {
+		a := args[i]
+		value := ""
+		if a == "--tools" {
+			i++
+			if i >= len(args) || strings.HasPrefix(args[i], "--") {
+				return errors.New("--tools exige nomes ou all")
+			}
+			value = args[i]
+		} else if strings.HasPrefix(a, "--tools=") {
+			value = strings.TrimPrefix(a, "--tools=")
+		} else {
+			remaining = append(remaining, a)
+			continue
+		}
+		if found != nil {
+			return errors.New("--tools repetido nos argumentos extras")
+		}
+		found = []string{}
+		for _, name := range strings.Split(value, ",") {
+			name = strings.TrimSpace(name)
+			if name == "" {
+				return errors.New("--tools contém nome vazio")
+			}
+			found = append(found, name)
+		}
+	}
+	if found == nil {
+		return nil
+	}
+	if len(c.Tools) > 0 && strings.Join(c.Tools, ",") != strings.Join(found, ",") {
+		return errors.New("tools e --tools têm seleções diferentes; use uma única seleção")
+	}
+	c.Tools = found
+	// --tools is an explicit opt-in in the configurator as well as the JSON.
+	if c.ToolCWD == "" {
+		c.ToolCWD = base
+	}
+	quoted := make([]string, len(remaining))
+	for i, a := range remaining {
+		quoted[i] = quoteStartupArg(a)
+	}
+	c.MainExtraArgs = strings.Join(quoted, " ")
+	return nil
+}
+
+func quoteStartupArg(a string) string {
+	if a != "" && !strings.ContainsAny(a, " \t\r\n\"") {
+		return a
+	}
+	var out strings.Builder
+	out.WriteByte('"')
+	slashes := 0
+	for _, ch := range a {
+		if ch == '\\' {
+			slashes++
+			continue
+		}
+		if ch == '"' {
+			out.WriteString(strings.Repeat("\\", slashes*2+1))
+			out.WriteRune(ch)
+		} else {
+			out.WriteString(strings.Repeat("\\", slashes))
+			out.WriteRune(ch)
+		}
+		slashes = 0
+	}
+	out.WriteString(strings.Repeat("\\", slashes*2))
+	out.WriteByte('"')
+	return out.String()
+}
+
 var nativeTools = map[string]bool{"read_file": true, "file_glob_search": true, "grep_search": true, "exec_shell_command": true, "write_file": true, "edit_file": true, "get_info": true}
 
 func (c Config) toolsEnabled() bool { return len(c.Tools) > 0 }
@@ -116,15 +205,12 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 	if r.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("descoberta /tools HTTP %d; verifique o suporte nativo de llama-server", r.StatusCode)
 	}
-	var entries []struct {
-		Tool       string         `json:"tool"`
-		Type       string         `json:"type"`
-		Definition ToolDefinition `json:"definition"`
-	}
+	var entries []ToolDescriptor
 	if err = json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&entries); err != nil {
 		return nil, err
 	}
 	defs := []ToolDefinition{}
+	descriptors := []ToolDescriptor{}
 	seen := map[string]bool{}
 	for _, entry := range entries {
 		d := entry.Definition
@@ -140,6 +226,7 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 		}
 		seen[d.Function.Name] = true
 		defs = append(defs, d)
+		descriptors = append(descriptors, entry)
 	}
 	for _, n := range e.cfg.Tools {
 		if n != "all" && !seen[n] {
@@ -150,6 +237,7 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 		return nil, errors.New("llama-server não anunciou ferramentas habilitadas")
 	}
 	w.tools = defs
+	w.toolDescriptors = descriptors
 	return defs, nil
 }
 
@@ -432,7 +520,7 @@ func (e *Engine) toolsHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	if !e.cfg.toolsEnabled() {
 		w.Header().Set("Content-Type", "application/json")
-		io.WriteString(w, `{"tools":[]}`)
+		io.WriteString(w, `[]`)
 		return
 	}
 	if err := e.acquire(r.Context()); err != nil {
@@ -441,16 +529,16 @@ func (e *Engine) toolsHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 	defer e.mu.Unlock()
 	worker, err := e.ensure(r.Context(), false)
-	var defs []ToolDefinition
 	if err == nil {
-		defs, err = e.toolDefinitions(r.Context(), worker)
+		_, err = e.toolDefinitions(r.Context(), worker)
 	}
 	if err != nil {
 		http.Error(w, err.Error(), 502)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(map[string]any{"tools": defs})
+	w.Header().Set("Cache-Control", "no-store")
+	json.NewEncoder(w).Encode(worker.toolDescriptors)
 }
 
 // A privileged local chat must not accept cross-site browser requests or DNS rebinding.

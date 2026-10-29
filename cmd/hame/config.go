@@ -136,6 +136,29 @@ func load(path string) (Config, error) {
 	if c.Backend == "" {
 		c.Backend = "server"
 	}
+	if c.WebUI == "" {
+		if c.Backend == "server" {
+			c.WebUI = "upstream"
+		} else {
+			c.WebUI = "embedded"
+		}
+	}
+	if c.WebUI != "upstream" && c.WebUI != "embedded" {
+		return c, errors.New("webui deve ser upstream ou embedded")
+	}
+	if c.WebUI == "upstream" && c.Backend != "server" {
+		return c, errors.New("webui upstream exige backend server")
+	}
+	if c.ContinuousHistory == nil {
+		enabled := true
+		c.ContinuousHistory = &enabled
+	}
+	if c.RetrievalTokens == 0 {
+		c.RetrievalTokens = 512
+	}
+	if c.RetrievalTokens < 64 || c.RetrievalTokens > 4096 {
+		return c, errors.New("retrieval_tokens deve estar entre 64 e 4096")
+	}
 	if !manualPlatform && c.CLI == "" && c.Llama != "" {
 		c.CLI = filepath.Join(filepath.Dir(c.Llama), "llama-cli.exe")
 	}
@@ -234,6 +257,9 @@ func load(path string) (Config, error) {
 	c.MainMMProj = resolve(c.MainMMProj)
 	c.CompilerModel = resolve(c.CompilerModel)
 	c.Data = resolve(c.Data)
+	if err := c.normalizeToolArgs(base); err != nil {
+		return c, err
+	}
 	if c.ToolMaxCalls == 0 {
 		c.ToolMaxCalls = 8
 	}
