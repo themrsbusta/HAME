@@ -150,13 +150,17 @@ func TestRetrieveOriginalFactAfterSummaryOmittedIt(t *testing.T) {
 	enabled := true
 	e.cfg.ContinuousHistory = &enabled
 	e.cfg.RetrievalTokens = 512
-	if err := atomicJSON(filepath.Join(e.cfg.Data, "context", "test", "0001.json"), []Message{{Role: "user", Content: "O codinome de Aurora é PANTERA-719."}, {Role: "assistant", Content: "Anotado."}}); err != nil {
+	if err := atomicJSON(filepath.Join(e.cfg.Data, "context", "test", "0001.json"), []Message{{Role: "user", Content: "O codinome de Aurora é PANTERA-719."}, {Role: "assistant", Content: "Anotado."}, {Role: "user", Content: strings.Repeat("Assunto independente sobre embalagens e transporte. ", 2000)}}); err != nil {
 		t.Fatal(err)
 	}
 	if err := atomicJSON(filepath.Join(e.cfg.Data, "context", "other", "0001.json"), []Message{{Role: "user", Content: "Aurora secreto OTHER-SESSION-999"}}); err != nil {
 		t.Fatal(err)
 	}
 	messages := []Message{{Role: "system", Content: "Resumo sem o codinome."}, {Role: "user", Content: "Qual era o codinome de Aurora?"}}
+	archived, _ := os.ReadFile(filepath.Join(e.cfg.Data, "context", "test", "0001.json"))
+	if len(archived) < e.cfg.Context*4 {
+		t.Fatal("fixture history must exceed the real window")
+	}
 	worker := &Worker{url: a.server.URL}
 	got, err := e.withRetrievedHistory(context.Background(), worker, "test", messages[1].Content, messages)
 	if err != nil {

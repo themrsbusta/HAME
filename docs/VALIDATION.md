@@ -7,6 +7,7 @@
 - Recuperação testada com um fato deliberadamente omitido do resumo, referências originais auditadas e isolamento de outra conversa. Entrada individual grande demais continua recusada antes da inferência.
 - Teste real Windows com Gemma E4B Q4_K_M, compilador E2B Q4_K_M e llama.cpp b11946 Vulkan: compactação automática por saturação observada, com quatro mensagens originais preservadas. A API e os logs confirmaram a troca de workers.
 - Navegador real: HTML e bundle obtidos do llama-server instalado, shim injetado, sete ferramentas descobertas, identidade com Q4_K_M e resposta `BETA-UI-OK` visível na conversa.
+- Após reiniciar o beta, o teste real recuperou `PANTERA-719` dos originais, gravou a referência em `retrieval-audit` e respondeu corretamente com orçamento de 5.230/8.192 tokens, incluindo reservas. O teste automatizado de recuperação também usa um histórico original maior que a janela real e um resumo que omite o fato.
 - A instalação beta fica em pasta separada, sem alterar a instalação estável nem os modelos originais. Os pacotes ARM64/Android são compilações cruzadas; não foram executados em hardware de destino.
 
 ## Verificações da 1.02 — 2026-10-29
