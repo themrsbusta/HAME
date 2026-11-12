@@ -83,7 +83,7 @@ func (e *Engine) prime(ctx context.Context, s Session) error {
 	b, _ := json.Marshal(body)
 	req, _ := http.NewRequestWithContext(ctx, "POST", w.url+"/apply-template", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
-	r, err := e.client.Do(req)
+	r, err := e.inferenceHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}
@@ -103,7 +103,7 @@ func (e *Engine) prime(ctx context.Context, s Session) error {
 	b, _ = json.Marshal(map[string]any{"prompt": v.Prompt, "n_predict": 0, "cache_prompt": true, "id_slot": 0})
 	req, _ = http.NewRequestWithContext(ctx, "POST", w.url+"/completion", bytes.NewReader(b))
 	req.Header.Set("Content-Type", "application/json")
-	r2, err := e.client.Do(req)
+	r2, err := e.inferenceHTTPClient().Do(req)
 	if err != nil {
 		return err
 	}

@@ -25,7 +25,7 @@ import (
 //go:embed all:webui
 var assets embed.FS
 
-const Version = "1.1-beta.1"
+const Version = "1.1-beta.2"
 const CompiledSchema = `{"type":"object","properties":{"system_instruction":{"type":"string","minLength":1},"context_bundle":{"type":"object","properties":{"retrieved_knowledge":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"fact":{"type":"string"}},"required":["source","fact"],"additionalProperties":false}},"conversation_lineage":{"type":"array","items":{"type":"string"}}},"required":["retrieved_knowledge","conversation_lineage"],"additionalProperties":false},"response_format":{"type":"string","minLength":1}},"required":["system_instruction","context_bundle","response_format"],"additionalProperties":false}`
 
 type Config struct {
@@ -115,23 +115,24 @@ type Worker struct {
 	lastPromptTokens int
 }
 type Engine struct {
-	uiMu           sync.Mutex
-	toolCatalog    *ToolCatalog
-	configPath     string
-	configRevision string
-	lifecycle      context.Context
-	cfg            Config
-	mu             sync.Mutex
-	main, compiler *Worker
-	client         *http.Client
-	pending        chan struct{}
-	profile        *Profile
-	extraMain      []string
-	metaMu         sync.RWMutex
-	props          map[string]any
-	modelName      string
-	activeSession  string
-	audit          []AuditEvent
+	uiMu            sync.Mutex
+	toolCatalog     *ToolCatalog
+	configPath      string
+	configRevision  string
+	lifecycle       context.Context
+	cfg             Config
+	mu              sync.Mutex
+	main, compiler  *Worker
+	client          *http.Client
+	inferenceClient *http.Client
+	pending         chan struct{}
+	profile         *Profile
+	extraMain       []string
+	metaMu          sync.RWMutex
+	props           map[string]any
+	modelName       string
+	activeSession   string
+	audit           []AuditEvent
 }
 
 var safeID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)
@@ -253,7 +254,7 @@ func (e *Engine) generate(ctx context.Context, w *Worker, msg []Message, limit i
 		return "", err
 	}
 	req.Header.Set("Content-Type", "application/json")
-	r, err := e.client.Do(req)
+	r, err := e.inferenceHTTPClient().Do(req)
 	if err != nil {
 		return "", err
 	}
@@ -374,7 +375,7 @@ func main() {
 	}
 	defer removeHandler()
 	setConsoleTitle("HAME " + Version + " — feche esta janela para encerrar os modelos")
-	e := &Engine{cfg: c, client: &http.Client{Timeout: 3 * time.Minute}, lifecycle: ctx}
+	e := &Engine{cfg: c, client: &http.Client{Timeout: 3 * time.Minute}, inferenceClient: &http.Client{}, lifecycle: ctx}
 	e.configPath, _ = filepath.Abs(*config)
 	e.configRevision = fileRevision(e.configPath)
 	if err = e.validate(ctx); err != nil {

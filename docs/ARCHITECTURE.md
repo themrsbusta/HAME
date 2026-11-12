@@ -1,5 +1,11 @@
 # Arquitetura — HAME 1.1 beta
 
+O cliente HTTP de inferência não tem limite absoluto de duração. Chamadas longas continuam sob o contexto de cancelamento da requisição e do ciclo de vida do HAME. O cliente limitado permanece separado para operações administrativas; inicialização de modelo e execução de ferramentas conservam seus próprios limites.
+
+Durante a carga do modelo, a saúde do endpoint é consultada uma vez por segundo, enquanto o término do processo é observado por seu canal de saída. Não há polling baseado em atividade de tokens durante a inferência.
+
+O cliente HTTP de inferência não tem limite absoluto de duração. Chamadas longas continuam sob o contexto de cancelamento da requisição e do ciclo de vida do HAME. O cliente limitado permanece separado para operações administrativas; inicialização de modelo e execução de ferramentas conservam seus próprios limites.
+
 HAME é um gateway Go entre clientes compatíveis com chat completions e processos externos do llama.cpp. No beta, o backend server obtém a WebUI do llama-server realmente instalado, mantém cache dos assets e injeta `hame-shim.js` antes dos módulos do frontend. O cache é atendido sem adquirir o lock do motor, preservando a interface durante a troca de workers. A WebUI vendorizada permanece embutida como alternativa e para o backend CLI.
 
 O navegador mantém o histórico visual; o script envia somente a nova mensagem user, com identidade estável por conversa. A janela real da API permanece correta. Só a apresentação da WebUI deixa de limitar a conversa pela soma do histórico inteiro. Antes da janela real encher, o gateway sintetiza a memória e reconstrói o KV. Após compactação, uma busca lexical limitada à mesma conversa pode reinjetar trechos originais; eles são transitórios, não substituem os originais nem se acumulam no snapshot ativo.

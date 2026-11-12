@@ -1,5 +1,13 @@
 # Alterações
 
+## 1.1 beta 2 — 2026-11-12
+
+- Removido o timeout absoluto do cliente HTTP usado em inferências, prefill e processamento prolongado de prompts no llama.cpp.
+- Compactação manual também aguarda sem limite de duração; cancelar a solicitação ou encerrar o HAME ainda interrompe o trabalho pelo contexto HTTP/processo.
+- Erros HTTP e encerramento inesperado do backend continuam sendo reportados; limites de tokens, contexto, inicialização de modelos e ferramentas permanecem iguais.
+- A checagem de saúde do backend durante a carga do modelo passa a ocorrer uma vez por segundo; o encerramento do processo continua acompanhado diretamente.
+- Adicionados testes para resposta lenta antes do primeiro token, cancelamento manual e erro do backend.
+
 ## 1.1 beta 1 — 2026-10-29
 
 - WebUI obtida do llama-server instalado, com script do HAME e cache persistente de assets; interface embutida anterior como alternativa.

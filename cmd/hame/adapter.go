@@ -43,6 +43,21 @@ func (e *Engine) commonArgs(compiler bool) []string {
 	}
 	return args
 }
+
+// inferenceHTTPClient deliberately has no absolute timeout. The request context
+// still cancels work when the caller disconnects or HAME shuts down.
+func (e *Engine) inferenceHTTPClient() *http.Client {
+	if e.inferenceClient != nil {
+		return e.inferenceClient
+	}
+	if e.client != nil {
+		client := *e.client
+		client.Timeout = 0
+		return &client
+	}
+	return http.DefaultClient
+}
+
 func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 	url, model, port, tag := e.cfg.MainURL, e.cfg.MainModel, e.cfg.PortMain, "main"
 	if compiler {
@@ -108,7 +123,7 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 	logWorker(tag, cmd.Process.Pid, model)
 	deadline := time.NewTimer(5 * time.Minute)
 	defer deadline.Stop()
-	tick := time.NewTicker(250 * time.Millisecond)
+	tick := time.NewTicker(time.Second)
 	defer tick.Stop()
 	for {
 		select {

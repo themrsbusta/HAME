@@ -1,5 +1,12 @@
 # Validação — HAME 1.1 beta
 
+## Verificações do beta 2 — 2026-11-12
+
+- `go test ./...` e `go vet ./...` aprovados com Go 1.18 no Windows x64.
+- Casos novos confirmam resposta após atraso antes do primeiro token, cancelamento via contexto, erro HTTP do backend e ausência de timeout absoluto nos clientes de geração/compactação manual. O limite `max_tokens` enviado ao backend foi verificado sem alteração.
+- `scripts/build.ps1` concluiu geração do recurso Windows, testes, vet e compilação Windows x64. Não foi feita inferência com modelo real nesta atualização; o comportamento de demora/cancelamento foi coberto por backend HTTP simulado.
+- A suíte usa atraso curto para evitar esperar os três minutos anteriores; a ausência do limite absoluto é também verificada diretamente (`http.Client.Timeout == 0`).
+
 ## Verificações do beta 1.1 — 2026-10-29
 
 - A Mica executou a suíte Go, `go vet`, testes JavaScript do shim e compilação dos quatro alvos por ferramentas reais do HAME. Recursos Windows identificam `1.1.0.1` / `1.1-beta.1`.

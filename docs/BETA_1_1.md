@@ -1,4 +1,4 @@
-# HAME 1.1 beta 1
+# HAME 1.1 beta 2
 
 Este documento descreve o beta experimental do HAME 1.1.
 
@@ -11,3 +11,7 @@ Configuração do beta: `webui: "upstream"`, `continuous_history: true` e `retri
 O script remove somente o limite do histórico completo na apresentação da WebUI. A API `/props` informa a janela real; o painel HAME mostra sua ocupação. Uma mensagem individual grande demais continua sendo rejeitada antes da inferência. O cache só atende arquivos estáticos e não expõe APIs administrativas do worker.
 
 Limites: busca lexical, sem garantia de recuperação semântica; lê registros originais de até 8 MiB e injeta até o orçamento configurado. Ferramentas de navegador/MCP personalizadas não são executadas pelo gateway; esta integração cobre as ferramentas nativas do servidor. Para editar retroativamente ou ramificar uma conversa, use uma nova conversa neste beta. Linux ARM64/Android precisam de validação em hardware de destino.
+
+## Inferências prolongadas no beta 2
+
+As chamadas de inferência e o processamento de prompts no llama.cpp não têm limite absoluto de duração. A geração, a descrição de imagens, a contagem/formatação de prompts e a compactação manual aguardam o backend sem cancelar pelo tempo decorrido; pausas antes do primeiro token não indicam travamento. O cancelamento continua ligado ao contexto da solicitação, ao encerramento do HAME e a erros reais do backend. Os limites configurados de tokens e contexto permanecem inalterados. Os limites de inicialização de modelos, descoberta do runtime e execução de ferramentas são controles separados e continuam ativos.

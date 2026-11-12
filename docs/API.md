@@ -1,5 +1,7 @@
 # API — HAME 1.1 beta
 
+No backend de inferência, HAME não impõe timeout absoluto para gerar respostas ou processar prompts no llama.cpp. A chamada continua cancelável pelo contexto HTTP do cliente e pelo encerramento do HAME; desconexão, cancelamento explícito e erros retornados pelo backend seguem sendo tratados. Contexto e limite de tokens de saída não mudam. Timeout de inicialização do modelo e timeout de execução das ferramentas nativas são controles independentes e permanecem ativos.
+
 ## Histórico contínuo e WebUI nativa
 
 No beta, `webui: "upstream"` é o padrão do backend server. `GET /` obtém o HTML da WebUI do worker local e injeta `/hame/shim.js`; assets ficam em `data_dir/webui-cache/`, identificados pelo executável/versão do llama e versão do HAME. O cache só atende GET/HEAD de arquivos estáticos, não APIs nem executores do worker. Requisições de chat e metadados permanecem no HAME. CLI usa `webui: "embedded"`; a mesma opção permite voltar à interface anterior no server.

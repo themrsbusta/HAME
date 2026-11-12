@@ -71,7 +71,7 @@ func (e *Engine) compactHTTP(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(map[string]any{"session_id": q.ID, "compactions": s.Compactions, "usage": s.Usage, "mode": e.cfg.Mode})
 }
 func memoryClient(c Config, id string, compact, recover bool) error {
-	client := &http.Client{Timeout: 20 * time.Minute}
+	client := memoryRequestClient(false)
 	health, err := client.Get("http://" + c.Listen + "/health")
 	if err != nil {
 		return err
@@ -94,7 +94,7 @@ func memoryClient(c Config, id string, compact, recover bool) error {
 	} else {
 		req, _ = http.NewRequest("GET", url, nil)
 	}
-	r, err := client.Do(req)
+	r, err := memoryRequestClient(compact).Do(req)
 	if err != nil {
 		return err
 	}
@@ -105,6 +105,13 @@ func memoryClient(c Config, id string, compact, recover bool) error {
 	}
 	fmt.Println(string(b))
 	return nil
+}
+
+func memoryRequestClient(compact bool) *http.Client {
+	if compact {
+		return &http.Client{}
+	}
+	return &http.Client{Timeout: 20 * time.Minute}
 }
 func (e *Engine) testExecutionMode(ctx context.Context) error {
 	if e.cfg.Backend == "cli" {
