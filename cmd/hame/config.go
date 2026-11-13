@@ -193,7 +193,7 @@ func load(path string) (Config, error) {
 		c.Output = 1024
 	}
 	if c.Threshold == 0 {
-		c.Threshold = 75
+		c.Threshold = 90
 	}
 	if c.Policy == "" {
 		c.Policy = "hybrid"
