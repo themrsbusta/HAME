@@ -694,7 +694,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		resume := append(append([]Message{}, turnBase...), Message{Role: "user", Content: continuation})
 		return e.main, resume, nil
 	}
-	reply, trace, err := e.chatWithTools(ctx, w, id, promptCandidate, recover)
+	reply, trace, err := e.chatWithToolsRecovery(ctx, w, id, promptCandidate, recover)
 	if err != nil {
 		e.status(id, "error", err)
 		return "", err

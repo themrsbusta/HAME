@@ -463,7 +463,11 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 
 // Only the ordinary user-chat path calls this. Compilers, media descriptions and
 // memory extraction continue using generate(), which never executes tools.
-func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []Message, recover generationRecovery) (string, []Message, error) {
+func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []Message) (string, []Message, error) {
+	return e.chatWithToolsRecovery(ctx, w, id, msg, nil)
+}
+
+func (e *Engine) chatWithToolsRecovery(ctx context.Context, w *Worker, id string, msg []Message, recover generationRecovery) (string, []Message, error) {
 	defs, err := e.toolDefinitions(ctx, w)
 	if err != nil {
 		return "", nil, err
