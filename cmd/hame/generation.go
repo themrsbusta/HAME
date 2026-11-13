@@ -82,7 +82,17 @@ func (e *Engine) compactionThreshold() int {
 	if e.cfg.ContextRuntime.Compaction.Trigger.ThresholdPercent > 0 {
 		return e.cfg.ContextRuntime.Compaction.Trigger.ThresholdPercent
 	}
+	if e.cfg.ContextRuntime.Compaction.Trigger.Type == "" && e.cfg.Threshold > 0 {
+		return e.cfg.Threshold
+	}
 	return 75
+}
+
+func (e *Engine) compactionEnabled() bool {
+	if e.cfg.ContextRuntime.Compaction.Trigger.Type == "" {
+		return e.cfg.Backend == "server"
+	}
+	return e.cfg.ContextRuntime.Compaction.Enabled
 }
 
 func (e *Engine) contextLimit() int {
@@ -156,7 +166,7 @@ func (e *Engine) readSlotSnapshot(ctx context.Context, w *Worker) (slotSnapshot,
 }
 
 func (e *Engine) generationBudget(ctx context.Context, w *Worker, msg []Message) (int, bool, TokenUsage, error) {
-	if e.cfg.Generation.ArtificialOutputLimit || !e.cfg.ContextRuntime.Compaction.Enabled {
+	if e.cfg.Generation.ArtificialOutputLimit || !e.compactionEnabled() {
 		return e.cfg.Output, false, TokenUsage{}, nil
 	}
 	u, err := e.usage(ctx, w, msg, 0)

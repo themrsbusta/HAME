@@ -631,7 +631,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	if retrieve && policy == "automatic" && !force && !e.continuousHistory() {
 		return "", errors.New("política automática não aciona recuperação por pergunta; use o comando manual ou política híbrida")
 	}
-	automatic := e.cfg.ContextRuntime.Compaction.Enabled && u.Percent >= float64(e.compactionThreshold())
+	automatic := e.compactionEnabled() && (policy != "on_demand" || e.continuousHistory()) && u.Percent >= float64(e.compactionThreshold())
 	if force || retrieve || automatic {
 		reason := "saturation"
 		if force {
@@ -666,7 +666,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		}
 	}
 	recover := func(messages []Message, partial Message, responseSoFar, reason string) (*Worker, []Message, error) {
-		if !e.cfg.ContextRuntime.Compaction.Enabled {
+		if !e.compactionEnabled() {
 			return nil, nil, errors.New("compactação automática desativada; resposta incompleta")
 		}
 		checkpoint := append([]Message{}, messages...)
