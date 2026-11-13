@@ -283,6 +283,14 @@ func (e *Engine) refreshMetadata(ctx context.Context, w *Worker) {
 	if json.NewDecoder(io.LimitReader(r.Body, 1<<20)).Decode(&props) != nil {
 		return
 	}
+	if defaults, ok := props["default_generation_settings"].(map[string]any); ok {
+		if n := numberField(defaults["n_ctx"]); n > 0 {
+			e.metaMu.Lock()
+			e.runtimeContext = n
+			e.runtimeContextFrom = "llama-server /props"
+			e.metaMu.Unlock()
+		}
+	}
 	name, _ := props["model_alias"].(string)
 	if name == "" {
 		name = filepath.Base(e.cfg.MainModel)
@@ -308,7 +316,11 @@ func (e *Engine) metadata(route string) any {
 	}
 	e.metaMu.RUnlock()
 	if props == nil {
-		props = map[string]any{"default_generation_settings": map[string]any{"n_ctx": e.cfg.Context, "params": map[string]any{"temperature": 0.2, "max_tokens": e.cfg.Output}}, "total_slots": 1, "chat_template": "", "ui": true, "endpoint_slots": false, "endpoint_props": false, "cors_proxy_enabled": false, "is_sleeping": false}
+		outputLimit := e.cfg.Output
+		if !e.cfg.Generation.ArtificialOutputLimit {
+			outputLimit = -1
+		}
+		props = map[string]any{"default_generation_settings": map[string]any{"n_ctx": e.contextLimit(), "params": map[string]any{"temperature": 0.2, "max_tokens": outputLimit}}, "total_slots": 1, "chat_template": "", "ui": true, "endpoint_slots": false, "endpoint_props": false, "cors_proxy_enabled": false, "is_sleeping": false}
 	}
 	props["model_alias"] = name
 	props["model_path"] = e.cfg.MainModel
@@ -317,7 +329,10 @@ func (e *Engine) metadata(route string) any {
 	props["role"] = "model"
 	props["hame"] = e.configurationState()
 	if defaults, ok := props["default_generation_settings"].(map[string]any); ok {
-		defaults["n_ctx"] = e.cfg.Context
+		defaults["n_ctx"] = e.contextLimit()
+		if params, ok := defaults["params"].(map[string]any); ok && !e.cfg.Generation.ArtificialOutputLimit {
+			params["max_tokens"] = -1
+		}
 	}
 	props["modalities"] = map[string]bool{"vision": e.cfg.MainMMProj != "" && e.cfg.Backend == "server", "audio": false, "video": false}
 	return props

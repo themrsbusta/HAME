@@ -1,6 +1,12 @@
-# HAME 1.1 beta 2
+# HAME 1.1 beta 3
 
-Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema.
+Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema. O beta 3 adiciona geração segmentada sem limite artificial, monitoramento da ocupação KV do runtime e recuperação de respostas interrompidas.
+
+## Beta 3: geração e recuperação por ocupação KV
+
+No backend `server`, a capacidade vem do `n_ctx` real do modelo/slot. O HAME conta o prompt formatado e limita cada segmento de geração ao espaço restante até 75% dessa capacidade. Ao atingir essa fronteira, compacta a conversa, preserva a tarefa ativa e continua sem repetir o texto já produzido; a conversa só é concluída depois de um encerramento natural e, quando exigido, de um ciclo válido de ferramentas. A política detalhada está em [docs/GENERATION_BETA_3.md](docs/GENERATION_BETA_3.md) e [specs/HAME_1.1-beta.3-generation.yaml](specs/HAME_1.1-beta.3-generation.yaml).
+
+O contador `KV` exibido pelo HAME representa tokens ocupados na slot do llama-server, não bytes exatos de VRAM. A recuperação de falha de alocação tenta compactar e repetir uma vez. Cancelamento do pedido interrompe a geração; sem progresso de contadores por cinco minutos, o HAME cancela como travada. O backend `CLI` não fornece monitoramento da slot e mantém limite fixo por chamada; use `server` para a política automática do beta 3.
 
 ## Beta 1.1: WebUI nativa e histórico contínuo
 
@@ -57,7 +63,7 @@ O código usa apenas a biblioteca padrão do Go. Mínimo declarado: Go 1.18. Da 
 - `configs/`: exemplos públicos, sem caminhos pessoais.
 - `scripts/windows/` e `scripts/unix/`: configurador e iniciadores; os scripts de build ficam em `scripts/` e o gerador de recursos em `scripts/tools/`.
 - `assets/`: ícone do aplicativo; `docs/`: arquitetura, API, portabilidade e validação.
-- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão deste beta é **1.1-beta.2**.
+- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.1-beta.3**.
 - `build/`: saídas locais ignoradas pelo Git. Modelos, llama.cpp, configurações pessoais e históricos não pertencem ao código-fonte.
 
 A versão 1.02 corrige a codificação dos textos da 1.01, que acrescentou execução de ferramentas à base 1.0. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.

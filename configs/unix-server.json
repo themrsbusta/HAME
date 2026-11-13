@@ -1,4 +1,39 @@
 {
+  "generation": {
+    "output_tokens": "auto",
+    "reserve_tokens": "auto",
+    "artificial_output_limit": false
+  },
+  "context": {
+    "capacity": "model_runtime",
+    "kv_cache_monitoring": true,
+    "compaction": {
+      "enabled": true,
+      "trigger": {
+        "type": "kv_cache_occupancy",
+        "threshold_percent": 75
+      },
+      "strategy": [
+        "preserve_system_instructions",
+        "preserve_active_task",
+        "preserve_tool_state",
+        "summarize_old_history",
+        "continue_generation"
+      ]
+    }
+  },
+  "completion": {
+    "success_requires": ["natural_completion", "valid_tool_cycle_if_required"],
+    "truncated_response": {
+      "mark_completed": false,
+      "attempt_recovery": true
+    }
+  },
+  "safety": {
+    "explicit_cancellation": true,
+    "resource_exhaustion_handling": true,
+    "detect_stalled_generation": true
+  },
   "backend": "server",
   "llama_server": "llama/llama-server",
   "llama_cli": "",
@@ -12,7 +47,7 @@
   "context_tokens": 8192,
   "output_tokens": 1024,
   "gpu_layers": "0",
-  "compaction_threshold_percent": 90,
+  "compaction_threshold_percent": 75,
   "reserve_tokens": 1024,
   "template_reserve_tokens": 128,
   "compiled_memory_max_tokens": 1024,

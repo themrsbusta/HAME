@@ -154,8 +154,8 @@ func (e *Engine) withRetrievedHistory(ctx context.Context, w *Worker, id, query 
 	if budget <= 0 {
 		budget = 512
 	}
-	if budget > e.cfg.Context/4 {
-		budget = e.cfg.Context / 4
+	if budget > e.contextLimit()/4 {
+		budget = e.contextLimit() / 4
 	}
 	base, err := e.usage(ctx, w, messages, e.reserve())
 	if err != nil {
@@ -170,7 +170,7 @@ func (e *Engine) withRetrievedHistory(ctx context.Context, w *Worker, id, query 
 		if err != nil {
 			return nil, err
 		}
-		if usage.Total <= e.cfg.Context && usage.Prompt-base.Prompt <= budget {
+		if usage.Total <= e.contextLimit() && usage.Prompt-base.Prompt <= budget {
 			path := filepath.Join(e.cfg.Data, "retrieval-audit", id, fmt.Sprintf("%020d.json", time.Now().UnixNano()))
 			if err = atomicJSON(path, map[string]any{"query": query, "excerpts": excerpts, "retrieved_tokens": usage.Prompt - base.Prompt}); err != nil {
 				return nil, err

@@ -1,5 +1,14 @@
 # Alterações
 
+## 1.1 beta 3 — 2026-11-13
+
+- Geração do backend server baseada no espaço livre até 75% da capacidade real de contexto anunciada pelo llama.cpp; os segmentos continuam após compactação, sem limite artificial de saída por turno.
+- Monitoramento contínuo dos contadores de prompt/decodificação e capacidade da slot por `/slots`; o painel de uso acompanha a ocupação lógica em tokens.
+- Respostas só são concluídas após encerramento natural e ciclo de ferramentas válido quando necessário. Respostas truncadas preservam a tarefa e o texto produzido, compactam e tentam continuar; chamadas de ferramenta incompletas nunca são executadas.
+- Falha de capacidade pode acionar uma compactação e uma nova tentativa; geração sem progresso por cinco minutos é cancelada e reportada como travada.
+- Configurador Windows agora usa 75% por padrão, grava a política completa por backend e explica que a geração automática depende do llama-server. CLI permanece em limite fixo por chamada.
+- Atualizados exemplos de configuração, a especificação YAML da política e a documentação de limites.
+
 ## 1.1 beta 2 — 2026-11-12
 
 - Removido o timeout absoluto do cliente HTTP usado em inferências, prefill e processamento prolongado de prompts no llama.cpp.

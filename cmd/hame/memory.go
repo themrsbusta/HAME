@@ -68,6 +68,9 @@ func (e *Engine) memoryLimit() int {
 	return 1024
 }
 func (e *Engine) reserve() int {
+	if e.cfg.Generation.ReserveTokens == "auto" {
+		return 0
+	}
 	if e.cfg.Reserve > e.cfg.Output {
 		return e.cfg.Reserve
 	}
@@ -200,8 +203,11 @@ func (e *Engine) usage(ctx context.Context, w *Worker, msg []Message, reserve in
 	if err != nil {
 		return TokenUsage{}, err
 	}
-	u := TokenUsage{Prompt: n, Reserved: reserve, Overhead: e.cfg.TemplateReserve, Limit: e.cfg.Context, Exact: exact, Method: method}
-	u.Total = u.Prompt + u.Reserved + u.Overhead
+	u := TokenUsage{Prompt: n, Reserved: reserve, Overhead: e.cfg.TemplateReserve, Limit: e.contextLimit(), Exact: exact, Method: method}
+	u.Total = u.Prompt + u.Reserved
+	if !u.Exact {
+		u.Total += u.Overhead
+	}
 	u.Percent = math.Round(float64(u.Total)*10000/float64(u.Limit)) / 100
 	return u, nil
 }
@@ -331,7 +337,7 @@ func (e *Engine) stateFromMain(ctx context.Context, id, pending string, s Sessio
 		if err != nil {
 			return state, err
 		}
-		if u.Total <= e.cfg.Context {
+		if u.Total <= e.contextLimit() {
 			break
 		}
 		if len(messages) <= 2 {
@@ -410,7 +416,7 @@ func (e *Engine) compileState(ctx context.Context, id string, state State, s Ses
 		if er != nil {
 			return er
 		}
-		if u.Total > e.cfg.Context {
+		if u.Total > e.contextLimit() {
 			return errors.New("lote do compilador excede contexto")
 		}
 		previous, _ := json.Marshal(c)
@@ -446,7 +452,7 @@ func (e *Engine) compileState(ctx context.Context, id string, state State, s Ses
 				if er != nil {
 					return c, nil, er
 				}
-				if u.Total <= e.cfg.Context {
+				if u.Total <= e.contextLimit() {
 					break
 				}
 				if batch != "" {
@@ -554,8 +560,8 @@ func (e *Engine) compactLocked(ctx context.Context, id, pending string, s *Sessi
 	if err != nil {
 		return err
 	}
-	if u.Total > e.cfg.Context {
-		return fmt.Errorf("memória compilada + nova mensagem excedem contexto (%d/%d); reduza entrada ou memória", u.Total, e.cfg.Context)
+	if u.Total > e.contextLimit() {
+		return fmt.Errorf("memória compilada + nova mensagem excedem contexto (%d/%d); reduza entrada ou memória", u.Total, e.contextLimit())
 	}
 	if e.cfg.Mode == "resident" {
 		e.status(id, "invalidating_context", nil)
@@ -608,19 +614,16 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	if err != nil {
 		return "", err
 	}
-	if solo.Total > e.cfg.Context {
-		return "", fmt.Errorf("nova mensagem sozinha exige %d/%d tokens com reservas; entrada não enviada ao modelo", solo.Total, e.cfg.Context)
+	if solo.Total > e.contextLimit() {
+		return "", fmt.Errorf("nova mensagem sozinha exige %d/%d tokens com reservas; entrada não enviada ao modelo", solo.Total, e.contextLimit())
 	}
-	candidate := append(append([]Message{}, s.Messages...), Message{Role: "user", Content: user})
+	turnBase := append([]Message{}, s.Messages...)
+	candidate := append(append([]Message{}, turnBase...), Message{Role: "user", Content: user})
 	u, err := e.usage(ctx, w, candidate, e.reserve())
 	if err != nil {
 		return "", err
 	}
 	e.publishUsage(id, u)
-	threshold := e.cfg.Threshold
-	if threshold == 0 {
-		threshold = 90
-	}
 	policy := e.cfg.Policy
 	if policy == "" {
 		policy = "hybrid"
@@ -628,7 +631,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	if retrieve && policy == "automatic" && !force && !e.continuousHistory() {
 		return "", errors.New("política automática não aciona recuperação por pergunta; use o comando manual ou política híbrida")
 	}
-	automatic := (policy != "on_demand" || e.continuousHistory()) && u.Percent >= float64(threshold)
+	automatic := e.cfg.ContextRuntime.Compaction.Enabled && u.Percent >= float64(e.compactionThreshold())
 	if force || retrieve || automatic {
 		reason := "saturation"
 		if force {
@@ -642,6 +645,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 			return "", err
 		}
 		s.Messages = withDatetime(s.Messages, time.Now())
+		turnBase = append([]Message{}, s.Messages...)
 		candidate = append(append([]Message{}, s.Messages...), Message{Role: "user", Content: user})
 		w = e.main
 		u, err = e.usage(ctx, w, candidate, e.reserve())
@@ -649,8 +653,8 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 			return "", err
 		}
 	}
-	if u.Total > e.cfg.Context {
-		return "", fmt.Errorf("contexto cheio (%d/%d): solicite compactação manual", u.Total, e.cfg.Context)
+	if u.Total > e.contextLimit() {
+		return "", fmt.Errorf("contexto cheio (%d/%d): solicite compactação manual", u.Total, e.contextLimit())
 	}
 	e.status(id, "responding", nil)
 	promptCandidate := candidate
@@ -661,7 +665,36 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 			return "", err
 		}
 	}
-	reply, trace, err := e.chatWithTools(ctx, w, id, promptCandidate)
+	recover := func(messages []Message, partial Message, responseSoFar, reason string) (*Worker, []Message, error) {
+		if !e.cfg.ContextRuntime.Compaction.Enabled {
+			return nil, nil, errors.New("compactação automática desativada; resposta incompleta")
+		}
+		checkpoint := append([]Message{}, messages...)
+		if len(partial.ToolCalls) > 0 {
+			raw, _ := json.Marshal(partial.ToolCalls)
+			content := partial.Content + "\nSolicitação de ferramenta incompleta, não executada: " + string(raw)
+			checkpoint = append(checkpoint, Message{Role: "assistant", Content: content})
+		} else if strings.TrimSpace(partial.Content) != "" {
+			checkpoint = append(checkpoint, Message{Role: "assistant", Content: partial.Content})
+		}
+		compacted := s
+		compacted.Messages = checkpoint
+		if err := e.compactLocked(ctx, id, "", &compacted, false, reason); err != nil {
+			return nil, nil, fmt.Errorf("não foi possível recuperar a geração truncada: %w", err)
+		}
+		s = compacted
+		turnBase = append([]Message{}, s.Messages...)
+		continuation := "Continue the active user task after HAME compacted the context. Do not mark the task complete until the response naturally ends and any required tool cycle is valid. Original user request: " + originalUser
+		if strings.TrimSpace(responseSoFar) != "" {
+			continuation += "\nAssistant text already produced; do not repeat it. Continue directly from its end:\n" + tailRunes(responseSoFar, 8000)
+		}
+		if len(partial.ToolCalls) > 0 {
+			continuation += "\nThe partial tool request above was not executed. If the action is still needed, emit a complete valid tool call; never assume it ran."
+		}
+		resume := append(append([]Message{}, turnBase...), Message{Role: "user", Content: continuation})
+		return e.main, resume, nil
+	}
+	reply, trace, err := e.chatWithTools(ctx, w, id, promptCandidate, recover)
 	if err != nil {
 		e.status(id, "error", err)
 		return "", err
@@ -671,16 +704,19 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 	}
 	dir := filepath.Join(e.cfg.Data, "context", id)
 	name := fmt.Sprintf("%020d.json", time.Now().UnixNano())
+	if len(trace) > 0 && trace[len(trace)-1].Role == "assistant" && len(trace[len(trace)-1].ToolCalls) == 0 {
+		trace[len(trace)-1].Content = reply
+	}
 	exchange := append([]Message{{Role: "user", Content: originalUser}}, trace...)
 	if err = atomicJSON(filepath.Join(dir, name), exchange); err != nil {
 		return "", err
 	}
-	s.Messages = append(candidate, trace...)
+	s.Messages = append(append(append([]Message{}, turnBase...), Message{Role: "user", Content: user}), trace...)
 	s.LastArchive = name
 	if err = atomicJSON(e.path(id, ".json"), s); err != nil {
 		return "", err
 	}
-	s.Usage, err = e.usage(ctx, w, append(promptCandidate, trace...), e.reserve())
+	s.Usage, err = e.usage(ctx, w, s.Messages, e.reserve())
 	if err != nil {
 		s.Usage = u
 		s.Usage.Exact = false
@@ -822,7 +858,7 @@ func (e *Engine) checkedState(ctx context.Context, w *Worker, messages []Message
 			if err != nil {
 				return state, err
 			}
-			if u.Total > e.cfg.Context {
+			if u.Total > e.contextLimit() {
 				return state, errors.New("correção de identificadores não cabe no contexto")
 			}
 		}
@@ -837,7 +873,7 @@ func (e *Engine) checkedCompiled(ctx context.Context, w *Worker, msg []Message, 
 		if err != nil {
 			return Compiled{}, err
 		}
-		if u.Total > e.cfg.Context {
+		if u.Total > e.contextLimit() {
 			return Compiled{}, errors.New("correção de contrato não cabe no lote")
 		}
 		raw, err := e.generate(ctx, w, msg, e.memoryLimit(), CompiledSchema)

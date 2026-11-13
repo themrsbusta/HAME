@@ -136,6 +136,9 @@ func load(path string) (Config, error) {
 	if c.Backend == "" {
 		c.Backend = "server"
 	}
+	if err := applyRuntimePolicyDefaults(&c); err != nil {
+		return c, err
+	}
 	if c.WebUI == "" {
 		if c.Backend == "server" {
 			c.WebUI = "upstream"
@@ -190,7 +193,7 @@ func load(path string) (Config, error) {
 		c.Output = 1024
 	}
 	if c.Threshold == 0 {
-		c.Threshold = 90
+		c.Threshold = 75
 	}
 	if c.Policy == "" {
 		c.Policy = "hybrid"
@@ -213,10 +216,10 @@ func load(path string) (Config, error) {
 	if c.Policy != "automatic" && c.Policy != "on_demand" && c.Policy != "hybrid" {
 		return c, errors.New("política inválida")
 	}
-	if c.Reserve < c.Output || c.Reserve+c.TemplateReserve >= c.Context || c.TemplateReserve < 0 {
+	if (c.Generation.ReserveTokens != "auto" && c.Reserve < c.Output) || c.Reserve+c.TemplateReserve >= c.Context || c.TemplateReserve < 0 {
 		return c, errors.New("reserva deve cobrir a saída e deixar espaço no contexto")
 	}
-	if c.MemoryMax < 128 || c.MemoryMax+c.Reserve+c.TemplateReserve >= c.Context {
+	if c.MemoryMax < 128 || c.MemoryMax+c.TemplateReserve >= c.Context || (c.Generation.ReserveTokens != "auto" && c.MemoryMax+c.Reserve+c.TemplateReserve >= c.Context) {
 		return c, errors.New("orçamento da memória compilada inválido")
 	}
 	if _, err := parseStartupArgs(c.MainExtraArgs); err != nil {
@@ -224,6 +227,27 @@ func load(path string) (Config, error) {
 	}
 	if c.Backend != "server" && c.Backend != "cli" {
 		return c, errors.New("backend deve ser server ou cli")
+	}
+	if c.Generation.OutputTokens != "auto" && c.Generation.OutputTokens != "fixed" {
+		return c, errors.New("generation.output_tokens deve ser auto ou fixed")
+	}
+	if c.Generation.ReserveTokens != "auto" && c.Generation.ReserveTokens != "fixed" {
+		return c, errors.New("generation.reserve_tokens deve ser auto ou fixed")
+	}
+	if c.Generation.ArtificialOutputLimit && (c.Generation.OutputTokens != "fixed" || c.Output < 128) {
+		return c, errors.New("limite artificial exige generation.output_tokens=fixed e output_tokens numérico")
+	}
+	if c.Backend == "cli" && (c.Generation.OutputTokens == "auto" || c.Generation.ReserveTokens == "auto" || c.ContextRuntime.Capacity == "model_runtime" || c.ContextRuntime.KVCacheMonitoring || c.ContextRuntime.Compaction.Enabled) {
+		return c, errors.New("a política automática de geração e monitoramento KV exige backend server; no CLI use valores fixos e contexto configurado")
+	}
+	if c.ContextRuntime.Capacity != "model_runtime" && c.ContextRuntime.Capacity != "configured" {
+		return c, errors.New("context.capacity deve ser model_runtime ou configured")
+	}
+	if c.Backend == "server" && c.ContextRuntime.Compaction.Trigger.Type != "kv_cache_occupancy" {
+		return c, errors.New("context.compaction.trigger.type deve ser kv_cache_occupancy no backend server")
+	}
+	if c.ContextRuntime.Compaction.Trigger.ThresholdPercent < 10 || c.ContextRuntime.Compaction.Trigger.ThresholdPercent > 99 {
+		return c, errors.New("context.compaction.trigger.threshold_percent deve estar entre 10 e 99")
 	}
 	if c.Backend == "cli" && c.Mode == "resident" {
 		return c, errors.New("CLI executa por tarefa; selecione o modo constrained")
@@ -275,6 +299,67 @@ func load(path string) (Config, error) {
 		c.Tokenizer = resolve(c.Tokenizer)
 	}
 	return c, nil
+}
+
+func applyRuntimePolicyDefaults(c *Config) error {
+	if c.Generation.OutputTokens == "" {
+		if c.Backend == "cli" {
+			c.Generation.OutputTokens = "fixed"
+		} else {
+			c.Generation.OutputTokens = "auto"
+		}
+	}
+	if c.Generation.ReserveTokens == "" {
+		if c.Backend == "cli" {
+			c.Generation.ReserveTokens = "fixed"
+		} else {
+			c.Generation.ReserveTokens = "auto"
+		}
+	}
+	if c.ContextRuntime.Capacity == "" {
+		if c.Backend == "cli" {
+			c.ContextRuntime.Capacity = "configured"
+		} else {
+			c.ContextRuntime.Capacity = "model_runtime"
+		}
+	}
+	if c.Backend == "server" {
+		c.ContextRuntime.KVCacheMonitoring = true
+		c.ContextRuntime.Compaction.Enabled = true
+		if c.ContextRuntime.Compaction.Trigger.Type == "" {
+			c.ContextRuntime.Compaction.Trigger.Type = "kv_cache_occupancy"
+		}
+		if c.ContextRuntime.Compaction.Trigger.ThresholdPercent == 0 {
+			c.ContextRuntime.Compaction.Trigger.ThresholdPercent = 75
+		}
+		if c.ContextRuntime.Compaction.Strategy == nil {
+			c.ContextRuntime.Compaction.Strategy = []string{"preserve_system_instructions", "preserve_active_task", "preserve_tool_state", "summarize_old_history", "continue_generation"}
+		}
+	} else {
+		c.ContextRuntime.KVCacheMonitoring = false
+		c.ContextRuntime.Compaction.Enabled = false
+		if c.ContextRuntime.Compaction.Trigger.Type == "" {
+			c.ContextRuntime.Compaction.Trigger.Type = "configured_limit"
+		}
+		if c.ContextRuntime.Compaction.Trigger.ThresholdPercent == 0 {
+			c.ContextRuntime.Compaction.Trigger.ThresholdPercent = 75
+		}
+	}
+	if c.Completion.SuccessRequires == nil {
+		c.Completion.SuccessRequires = []string{"natural_completion", "valid_tool_cycle_if_required"}
+	}
+	c.Completion.TruncatedResponse.MarkCompleted = false
+	c.Completion.TruncatedResponse.AttemptRecovery = true
+	c.Safety.ExplicitCancellation = true
+	c.Safety.ResourceExhaustionHandling = true
+	c.Safety.DetectStalledGeneration = c.Backend == "server"
+	if c.Backend == "cli" {
+		if c.Generation.OutputTokens == "auto" || c.Generation.ReserveTokens == "auto" {
+			return errors.New("backend CLI não oferece monitoramento KV; use generation tokens fixed")
+		}
+		c.Generation.ArtificialOutputLimit = true
+	}
+	return nil
 }
 func (c Config) executable() string {
 	if c.Backend == "cli" {

@@ -22,5 +22,8 @@ func (e *Engine) configurationState() map[string]any {
 		changed = fileRevision(e.configPath) != e.configRevision
 	}
 	tools := append([]string{}, e.cfg.Tools...)
-	return map[string]any{"model_file": modelFileName(e.cfg.MainModel), "model_path": e.cfg.MainModel, "config_path": e.configPath, "config_revision": e.configRevision, "restart_required": changed, "tools_enabled": e.cfg.toolsEnabled(), "tools": tools, "tool_cwd": e.cfg.ToolCWD, "listen": e.cfg.Listen, "tool_execution": "hame", "continuous_history": e.continuousHistory(), "real_context_tokens": e.cfg.Context, "webui": e.cfg.WebUI, "retrieval_tokens": e.cfg.RetrievalTokens}
+	e.metaMu.RLock()
+	contextSource := e.runtimeContextFrom
+	e.metaMu.RUnlock()
+	return map[string]any{"model_file": modelFileName(e.cfg.MainModel), "model_path": e.cfg.MainModel, "config_path": e.configPath, "config_revision": e.configRevision, "restart_required": changed, "tools_enabled": e.cfg.toolsEnabled(), "tools": tools, "tool_cwd": e.cfg.ToolCWD, "listen": e.cfg.Listen, "tool_execution": "hame", "continuous_history": e.continuousHistory(), "real_context_tokens": e.contextLimit(), "context_source": contextSource, "generation": e.cfg.Generation, "context": e.cfg.ContextRuntime, "completion": e.cfg.Completion, "safety": e.cfg.Safety, "webui": e.cfg.WebUI, "retrieval_tokens": e.cfg.RetrievalTokens}
 }

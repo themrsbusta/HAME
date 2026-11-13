@@ -1,5 +1,11 @@
 # Validação — HAME 1.1 beta
 
+## Build do beta 3 — 2026-11-13
+
+- `go build ./cmd/hame` compilou o código Go do checkout Windows.
+- Compilação de distribuição concluída para Windows amd64, Linux amd64, Linux arm64 e Android arm64, com CGO desabilitado. Os artefatos beta 3 foram gerados em uma pasta isolada sob `build/release-v1.1-beta.3/`.
+- `go test ./...` e `go vet ./...` não foram executados nesta atualização. Não houve inferência com llama.cpp real neste build.
+
 ## Verificações do beta 2 — 2026-11-12
 
 - `go test ./...` e `go vet ./...` aprovados com Go 1.18 no Windows x64.

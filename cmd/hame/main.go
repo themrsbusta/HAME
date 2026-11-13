@@ -25,47 +25,51 @@ import (
 //go:embed all:webui
 var assets embed.FS
 
-const Version = "1.1-beta.2"
+const Version = "1.1-beta.3"
 const CompiledSchema = `{"type":"object","properties":{"system_instruction":{"type":"string","minLength":1},"context_bundle":{"type":"object","properties":{"retrieved_knowledge":{"type":"array","items":{"type":"object","properties":{"source":{"type":"string"},"fact":{"type":"string"}},"required":["source","fact"],"additionalProperties":false}},"conversation_lineage":{"type":"array","items":{"type":"string"}}},"required":["retrieved_knowledge","conversation_lineage"],"additionalProperties":false},"response_format":{"type":"string","minLength":1}},"required":["system_instruction","context_bundle","response_format"],"additionalProperties":false}`
 
 type Config struct {
-	WebUI              string   `json:"webui,omitempty"`
-	ContinuousHistory  *bool    `json:"continuous_history,omitempty"`
-	RetrievalTokens    int      `json:"retrieval_tokens,omitempty"`
-	Tools              []string `json:"tools,omitempty"`
-	ToolCWD            string   `json:"tool_cwd,omitempty"`
-	ToolMaxCalls       int      `json:"tool_max_calls,omitempty"`
-	ToolTimeout        int      `json:"tool_timeout_seconds,omitempty"`
-	Capabilities       []string `json:"llama_capabilities,omitempty"`
-	RunnerVersion      string   `json:"llama_version,omitempty"`
-	MainMMProj         string   `json:"main_mmproj,omitempty"`
-	MainExtraArgs      string   `json:"main_extra_args,omitempty"`
-	Threshold          int      `json:"compaction_threshold_percent"`
-	Reserve            int      `json:"reserve_tokens"`
-	TemplateReserve    int      `json:"template_reserve_tokens"`
-	Policy             string   `json:"memory_policy"`
-	Prefill            *bool    `json:"prefill_compiled_context,omitempty"`
-	MemoryMax          int      `json:"compiled_memory_max_tokens"`
-	Tokenizer          string   `json:"llama_tokenize,omitempty"`
-	Backend            string   `json:"backend"`
-	CLI                string   `json:"llama_cli"`
-	MainDevice         string   `json:"main_device"`
-	CompilerDevice     string   `json:"compiler_device"`
-	MainDeviceName     string   `json:"main_device_name,omitempty"`
-	CompilerDeviceName string   `json:"compiler_device_name,omitempty"`
-	PortMain           int      `json:"main_port,omitempty"`
-	PortCompiler       int      `json:"compiler_port,omitempty"`
-	Mode               string   `json:"mode"`
-	Llama              string   `json:"llama_server"`
-	MainModel          string   `json:"main_model"`
-	CompilerModel      string   `json:"compiler_model"`
-	Data               string   `json:"data_dir"`
-	Listen             string   `json:"listen"`
-	MainURL            string   `json:"main_url"`
-	CompilerURL        string   `json:"compiler_url"`
-	Context            int      `json:"context_tokens"`
-	Output             int      `json:"output_tokens"`
-	GPULayers          string   `json:"gpu_layers"`
+	Generation         GenerationPolicy `json:"generation,omitempty"`
+	ContextRuntime     ContextPolicy    `json:"context,omitempty"`
+	Completion         CompletionPolicy `json:"completion,omitempty"`
+	Safety             SafetyPolicy     `json:"safety,omitempty"`
+	WebUI              string           `json:"webui,omitempty"`
+	ContinuousHistory  *bool            `json:"continuous_history,omitempty"`
+	RetrievalTokens    int              `json:"retrieval_tokens,omitempty"`
+	Tools              []string         `json:"tools,omitempty"`
+	ToolCWD            string           `json:"tool_cwd,omitempty"`
+	ToolMaxCalls       int              `json:"tool_max_calls,omitempty"`
+	ToolTimeout        int              `json:"tool_timeout_seconds,omitempty"`
+	Capabilities       []string         `json:"llama_capabilities,omitempty"`
+	RunnerVersion      string           `json:"llama_version,omitempty"`
+	MainMMProj         string           `json:"main_mmproj,omitempty"`
+	MainExtraArgs      string           `json:"main_extra_args,omitempty"`
+	Threshold          int              `json:"compaction_threshold_percent"`
+	Reserve            int              `json:"reserve_tokens"`
+	TemplateReserve    int              `json:"template_reserve_tokens"`
+	Policy             string           `json:"memory_policy"`
+	Prefill            *bool            `json:"prefill_compiled_context,omitempty"`
+	MemoryMax          int              `json:"compiled_memory_max_tokens"`
+	Tokenizer          string           `json:"llama_tokenize,omitempty"`
+	Backend            string           `json:"backend"`
+	CLI                string           `json:"llama_cli"`
+	MainDevice         string           `json:"main_device"`
+	CompilerDevice     string           `json:"compiler_device"`
+	MainDeviceName     string           `json:"main_device_name,omitempty"`
+	CompilerDeviceName string           `json:"compiler_device_name,omitempty"`
+	PortMain           int              `json:"main_port,omitempty"`
+	PortCompiler       int              `json:"compiler_port,omitempty"`
+	Mode               string           `json:"mode"`
+	Llama              string           `json:"llama_server"`
+	MainModel          string           `json:"main_model"`
+	CompilerModel      string           `json:"compiler_model"`
+	Data               string           `json:"data_dir"`
+	Listen             string           `json:"listen"`
+	MainURL            string           `json:"main_url"`
+	CompilerURL        string           `json:"compiler_url"`
+	Context            int              `json:"context_tokens"`
+	Output             int              `json:"output_tokens"`
+	GPULayers          string           `json:"gpu_layers"`
 }
 type State struct {
 	SessionID          string `json:"session_id"`
@@ -115,24 +119,26 @@ type Worker struct {
 	lastPromptTokens int
 }
 type Engine struct {
-	uiMu            sync.Mutex
-	toolCatalog     *ToolCatalog
-	configPath      string
-	configRevision  string
-	lifecycle       context.Context
-	cfg             Config
-	mu              sync.Mutex
-	main, compiler  *Worker
-	client          *http.Client
-	inferenceClient *http.Client
-	pending         chan struct{}
-	profile         *Profile
-	extraMain       []string
-	metaMu          sync.RWMutex
-	props           map[string]any
-	modelName       string
-	activeSession   string
-	audit           []AuditEvent
+	uiMu               sync.Mutex
+	toolCatalog        *ToolCatalog
+	configPath         string
+	configRevision     string
+	lifecycle          context.Context
+	cfg                Config
+	mu                 sync.Mutex
+	main, compiler     *Worker
+	client             *http.Client
+	inferenceClient    *http.Client
+	pending            chan struct{}
+	profile            *Profile
+	extraMain          []string
+	metaMu             sync.RWMutex
+	props              map[string]any
+	modelName          string
+	runtimeContext     int
+	runtimeContextFrom string
+	activeSession      string
+	audit              []AuditEvent
 }
 
 var safeID = regexp.MustCompile(`^[a-zA-Z0-9_-]{1,80}$`)

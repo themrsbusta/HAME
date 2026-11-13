@@ -463,67 +463,106 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 
 // Only the ordinary user-chat path calls this. Compilers, media descriptions and
 // memory extraction continue using generate(), which never executes tools.
-func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []Message) (string, []Message, error) {
+func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []Message, recover generationRecovery) (string, []Message, error) {
 	defs, err := e.toolDefinitions(ctx, w)
 	if err != nil {
 		return "", nil, err
 	}
-	if len(defs) == 0 {
-		text, err := e.completion(ctx, w, msg, false)
-		return text, []Message{{Role: "assistant", Content: text}}, err
+	// Legacy direct Engine fixtures and CLI mode keep their explicitly configured
+	// fixed output budget. Loaded server configs use the auto/recovery path.
+	if w.cli || e.cfg.Generation.OutputTokens == "" {
+		if len(defs) == 0 {
+			text, err := e.completion(ctx, w, msg, false)
+			return text, []Message{{Role: "assistant", Content: text}}, err
+		}
 	}
 	messages := append([]Message{}, msg...)
 	trace := []Message{}
 	used := 0
 	ids := map[string]bool{}
+	var generated strings.Builder
+	zeroProgressRecoveries := 0
+	resourceRecoveries := 0
+	lastPartialFingerprint := ""
 	for {
-		var formatted struct {
-			Prompt string `json:"prompt"`
+		if ctx.Err() != nil {
+			return "", trace, ctx.Err()
 		}
-		if err = e.post(ctx, w, "/apply-template", map[string]any{"messages": messages, "tools": defs, "add_generation_prompt": true}, &formatted); err != nil {
-			return "", trace, err
-		}
-		n, _, _, err := e.tokenText(ctx, w, formatted.Prompt)
-		if err != nil {
-			return "", trace, err
-		}
-		if n+e.reserve()+e.cfg.TemplateReserve > e.cfg.Context {
-			return "", trace, errors.New("contexto insuficiente para o ciclo de ferramentas; resultados estão no tool-audit")
-		}
-		body := map[string]any{"messages": messages, "tools": defs, "tool_choice": "auto", "max_tokens": e.cfg.Output, "temperature": 0.2, "cache_prompt": true, "id_slot": 0}
-		var response struct {
-			Choices []struct {
-				Message Message `json:"message"`
-				Finish  string  `json:"finish_reason"`
-			} `json:"choices"`
-			Usage struct {
-				PromptTokens int `json:"prompt_tokens"`
-			} `json:"usage"`
-		}
-		if err = e.post(ctx, w, "/v1/chat/completions", body, &response); err != nil {
-			return "", trace, err
-		}
-		if len(response.Choices) != 1 {
-			return "", trace, errors.New("resposta LLM sem escolha única")
-		}
-		choice := response.Choices[0]
-		answer := choice.Message
-		if choice.Finish == "length" {
-			return "", trace, errors.New("resposta truncada; ferramentas não executadas nessa resposta")
-		}
-		if len(answer.ToolCalls) == 0 {
-			if choice.Finish == "tool_calls" || strings.TrimSpace(answer.Content) == "" {
-				return "", trace, errors.New("resposta LLM vazia ou tool_calls ausentes")
+		if w.cli {
+			text, er := e.completion(ctx, w, messages, false)
+			if er != nil {
+				return "", trace, er
 			}
+			if strings.TrimSpace(text) == "" {
+				return "", trace, errors.New("resposta CLI vazia; turno não concluído")
+			}
+			trace = append(trace, Message{Role: "assistant", Content: text})
+			return text, trace, nil
+		}
+
+		result, genErr := e.chatCompletion(ctx, w, id, messages, defs)
+		if genErr != nil {
+			if errors.Is(genErr, errCompactionBoundary) && recover != nil && e.cfg.Completion.TruncatedResponse.AttemptRecovery {
+				w, messages, genErr = recover(messages, Message{Role: "assistant"}, generated.String(), "kv_occupancy")
+				if genErr != nil {
+					return "", trace, genErr
+				}
+				continue
+			}
+			if isResourceExhaustion(genErr) && recover != nil && e.cfg.Safety.ResourceExhaustionHandling && resourceRecoveries < 1 {
+				resourceRecoveries++
+				w, messages, genErr = recover(messages, Message{Role: "assistant"}, generated.String(), "resource_exhaustion")
+				if genErr != nil {
+					return "", trace, genErr
+				}
+				continue
+			}
+			return "", trace, genErr
+		}
+		answer := result.Message
+		if result.FinishReason == "length" {
+			if !result.CompactionBoundary {
+				return "", trace, errors.New("resposta atingiu o limite artificial configurado; turno incompleto")
+			}
+			if len(answer.ToolCalls) == 0 {
+				generated.WriteString(answer.Content)
+			}
+			if recover == nil || !e.cfg.Completion.TruncatedResponse.AttemptRecovery {
+				return "", trace, errors.New("resposta truncada; recuperação não disponível, turno incompleto")
+			}
+			fingerprint, _ := json.Marshal(answer)
+			if string(fingerprint) == lastPartialFingerprint {
+				zeroProgressRecoveries++
+			} else {
+				zeroProgressRecoveries = 0
+			}
+			lastPartialFingerprint = string(fingerprint)
+			if zeroProgressRecoveries > 0 {
+				return "", trace, errors.New("resposta repetiu o mesmo trecho truncado após compactação; turno incompleto")
+			}
+			w, messages, err = recover(messages, answer, generated.String(), "truncated_response")
+			if err != nil {
+				return "", trace, err
+			}
+			continue
+		}
+		if result.FinishReason == "stop" {
+			if len(answer.ToolCalls) > 0 || strings.TrimSpace(answer.Content) == "" {
+				return "", trace, errors.New("resposta natural vazia ou com tool_calls sem ciclo válido")
+			}
+			generated.WriteString(answer.Content)
 			answer.Role = "assistant"
+			answer.Content = generated.String()
 			trace = append(trace, answer)
-			w.lastPromptTokens = response.Usage.PromptTokens
+			w.lastPromptTokens = result.PromptTokens
 			return answer.Content, trace, nil
+		}
+		if result.FinishReason != "tool_calls" || len(answer.ToolCalls) == 0 || len(defs) == 0 {
+			return "", trace, fmt.Errorf("fim de geração inválido (%q); turno não concluído", result.FinishReason)
 		}
 		if used+len(answer.ToolCalls) > e.cfg.ToolMaxCalls {
 			return "", trace, errors.New("limite de chamadas de ferramentas atingido")
 		}
-		// Validate the entire batch before executing any member.
 		batch := make([]map[string]any, len(answer.ToolCalls))
 		for i, call := range answer.ToolCalls {
 			if ids[call.ID] {
