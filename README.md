@@ -1,63 +1,63 @@
 # HAME 1.02
 
-Memória persistente sobre llama.cpp. Uma base Go para Windows x64, Linux x64, Linux ARM64 e Android ARM64 via Termux. Código próprio BSD-3-Clause; WebUI llama.cpp com licença MIT preservada. Esta versão mantém a memória por ocupação, modos Constrained/Resident, foto original + descrição YAML, histórico e relógio do sistema.
+Persistent memory for llama.cpp. A Go application for Windows x64, Linux x64, Linux ARM64, and Android ARM64 through Termux. HAME-authored code is BSD-3-Clause; the llama.cpp WebUI retains its MIT license. This version keeps memory usage, Constrained/Resident modes, original photos and YAML descriptions, history, and the system clock.
 
-## Correções da 1.02
+## Fixes in 1.02
 
-- Acentos e separadores corrigidos no painel da WebUI e no histórico de alterações.
-- Scripts PowerShell distribuídos com UTF-8 BOM, para que o configurador mostre português corretamente no Windows PowerShell 5.1.
-- Declaração UTF-8 antecipada no HTML e testes de regressão para os textos servidos e a codificação dos scripts.
+- Fixed accents and separators in the WebUI and changelog.
+- Distributed PowerShell scripts with a UTF-8 BOM so Windows PowerShell 5.1 reads non-ASCII text correctly.
+- Declared UTF-8 early in the HTML and added regression checks for served text and script encoding.
 
-## Novidades da 1.01
+## New in 1.01
 
-- **Execução real de ferramentas pelo chat:** o HAME agora descobre as ferramentas nativas do llama-server, envia suas definições ao modelo, executa chamadas estruturadas e devolve os resultados para ele continuar a tarefa.
-- Leitura, busca, escrita e edição de arquivos, consulta do ambiente e comandos de shell disponíveis por configuração explícita com `tools` e `tool_cwd`. `["all"]` habilita as sete ferramentas nativas conhecidas; sem essa configuração, continuam desativadas.
-- Chamadas e resultados preservados no histórico, com registro antes e depois de cada execução em `data/tool-audit`. Limite de chamadas, timeout, validação de argumentos e proteção contra requisições de outros sites.
-- Ferramentas somente no chat principal; compilador de memória, extração de estado e descrição de imagens continuam sem executar ações.
-- Validado no Windows com llama.cpp b11946: o modelo criou e leu um arquivo de teste e executou uma consulta administrativa de leitura (`fltmc filters`) com código de saída 0. A mesma consulta sem elevação recebeu acesso negado. O HAME não exige administrador para tarefas comuns; comandos herdam os privilégios com que ele foi iniciado.
+- **Real tool execution in chat:** HAME now discovers the native llama-server tools, sends their definitions to the model, executes structured calls, and returns the results so it can continue the task.
+- File reading, search, writing, and editing, environment inspection, and shell commands can be enabled explicitly with `tools` and `tool_cwd`. `["all"]` enables the seven known native tools; they remain disabled without this configuration.
+- Calls and results are retained in history, with a record before and after each execution in `data/tool-audit`. Call limits, timeouts, argument validation, and protection against requests from other sites are included.
+- Tools are available only in the main chat; the memory compiler, state extraction, and image descriptions do not perform actions.
+- Validated on Windows with llama.cpp b11946: the model created and read a test file and ran a read-only administrative query (`fltmc filters`) with exit code 0. The same query without elevation was denied. HAME does not require administrator privileges for ordinary tasks; commands inherit the privileges of the process that started it.
 
-Veja [a configuração e os limites das ferramentas](docs/API.md#ferramentas-nativas-do-llama-server). O diretório inicial não é sandbox e a API nativa do llama.cpp é experimental.
+See [native llama-server tool configuration and limits](docs/API.md#native-llama-server-tools). The working directory is not a sandbox, and the native llama.cpp API is experimental.
 
 ## Windows
 
-Compile com `powershell -ExecutionPolicy Bypass -File scripts/build.ps1`. A saída fica em `build/windows-amd64/`, junto ao configurador e aos iniciadores. Execute `Configurar-HAME.cmd` nessa pasta e escolha executáveis, modelos e dispositivos. O build de recursos requer Python e clang; o HAME em si não requer esses programas para rodar. Uma configuração existente na pasta de saída é preservada.
+Build with `powershell -ExecutionPolicy Bypass -File scripts/build.ps1`. Output is written to `build/windows-amd64/`, alongside the configurator and launchers. Run `Configurar-HAME.cmd` in that directory and choose executables, models, and devices. Building resources requires Python and clang; HAME itself does not require them at runtime. Existing configuration in the output directory is preserved.
 
-## Linux e Termux: configuração inteiramente manual
+## Linux and Termux: fully manual configuration
 
-1. Obtenha ou compile **llama.cpp para o seu próprio sistema e arquitetura**, conforme as instruções do projeto. O pacote HAME não contém llama.cpp nem GGUFs. Um executável Windows não substitui um build Linux/Android.
-2. Use `configs/unix-server.json` ou `configs/unix-cli.json` como `config.json` junto ao binário. Os scripts copiam o exemplo server somente se ainda não existir uma configuração na pasta de saída. Edite os caminhos, modelos, dispositivos, camadas GPU, orçamento e capacidades de acordo com o seu llama. Caminhos relativos são resolvidos a partir da pasta do config.json; caminhos de executáveis não são procurados no PATH.
-3. `main_device` e `compiler_device` são explícitos (`none` para CPU). `gpu_layers` também é explícito (`0` para CPU). O valor `auto` é recusado nesses campos. HAME não procura GPUs, executáveis nem tokenizador e não chama --help/--version/--list-devices ao iniciar. Variáveis de ambiente do usuário são preservadas.
-4. Declare em `llama_capabilities` os parâmetros reais suportados, conforme o `--help` que você pode consultar manualmente no seu build. As capacidades dos exemplos incluem o protocolo mínimo necessário. Opções extras precisam constar nessa lista. Declarar um parâmetro não faz um llama incompatível passar a suportá-lo: falhas do motor são reportadas nos logs. `llama_version` é apenas uma identificação fornecida pelo usuário.
-5. `llama_tokenize` é opcional e só será executado se informado explicitamente. Sem ele, CLI usa estimativa conservadora; não descobre um tokenizador ao lado do executável. Server mantém contagem via suas APIs. As chamadas normais de saúde, geração e controle de slots continuam necessárias ao funcionamento do llama.
-6. Execute `chmod +x hame start.sh` e `./start.sh`, ou `./hame -config ./config.json -open=false`. Abra o endereço configurado no navegador; não há configurador nem abertura automática de navegador no Linux/Termux. `./hame -config ./config.json -check` valida a configuração declarada sem carregar os modelos. `-probe` continua disponível **somente por solicitação explícita** do operador.
+1. Obtain or build **llama.cpp for your own system and architecture**, following the project's instructions. The HAME package does not include llama.cpp or GGUF files. A Windows executable cannot replace a Linux/Android build.
+2. Copy `configs/unix-server.json` or `configs/unix-cli.json` to `config.json` next to the binary. Build scripts copy the server example only when the output directory has no configuration yet. Edit paths, models, devices, GPU layers, budgets, and capabilities to match your llama build. Relative paths are resolved from the `config.json` directory; executable paths are not searched in `PATH`.
+3. `main_device` and `compiler_device` must be explicit (`none` for CPU). `gpu_layers` must also be explicit (`0` for CPU). The value `auto` is rejected for these fields. HAME does not search for GPUs, executables, or tokenizers, and it does not call `--help`, `--version`, or `--list-devices` at startup. User environment variables are preserved.
+4. List the parameters actually supported by your build in `llama_capabilities`, based on the `--help` output you inspect manually. The examples include the minimum required protocol. Extra options must be listed there. Declaring a parameter does not make an incompatible llama build support it; engine failures are reported in the logs. `llama_version` is only an identifier supplied by the user.
+5. `llama_tokenize` is optional and runs only when specified explicitly. Without it, CLI mode uses a conservative estimate and does not look for a tokenizer beside the executable. Server mode uses its APIs for token counts. Normal health, generation, and slot-control requests are still required for llama to work.
+6. Run `chmod +x hame start.sh` and then `./start.sh`, or run `./hame -config ./config.json -open=false`. Open the configured address in a browser; Linux/Termux has no configurator and does not open a browser automatically. `./hame -config ./config.json -check` validates the declared configuration without loading models. `-probe` remains available **only when explicitly requested by the operator**.
 
-Para CLI use `configs/unix-cli.json`; exige as opções nativas de saída em arquivo do llama-cli. Resident exige server com --slots, --slot-save-path, --cache-ram e --no-cache-idle-slots declarados e implementados, além da verificação real do apagamento de slots. Os exemplos CPU usam Constrained. Nem todo build futuro do llama.cpp manterá o protocolo atual: valide capacidades e teste antes de atualizar.
+For CLI mode, use `configs/unix-cli.json`; it requires llama-cli's native output-to-file options. Resident mode requires a server with `--slots`, `--slot-save-path`, `--cache-ram`, and `--no-cache-idle-slots` declared and implemented, as well as verification that slot data was actually erased. CPU examples use Constrained mode. Future llama.cpp builds may change this protocol; validate capabilities and test before upgrading.
 
 ## Termux
 
-Use o executável **android/arm64**, não o linux/arm64. Ambos usam ARM64, mas são alvos de sistema diferentes. Mantenha binários e scripts no diretório privado do Termux, por exemplo `$HOME/HAME`; armazenamento compartilhado como `/sdcard` não é adequado para executar binários. Configure os caminhos acessíveis ao Termux para o llama e GGUFs. Não requer proot para o HAME Android nativo. Drivers, aceleração GPU e limites de memória dependem do aparelho e do build do llama.cpp, e ficam sob controle do usuário. A execução real no Android não foi validada neste ambiente Windows/WSL.
+Use the **android/arm64** executable, not linux/arm64. Both use ARM64, but target different operating systems. Keep binaries and scripts in Termux's private directory, such as `$HOME/HAME`; shared storage such as `/sdcard` is not suitable for executing binaries. Configure paths accessible to Termux for llama and GGUF files. Native HAME for Android does not require proot. Drivers, GPU acceleration, and memory limits depend on the device and llama.cpp build and remain under the user's control. Native Android execution was not validated in this Windows/WSL environment.
 
-## Compilação
+## Building
 
-O código usa apenas a biblioteca padrão do Go. Mínimo declarado: Go 1.18. Da raiz, compile com `go build ./cmd/hame`. No Linux/Termux: `sh scripts/build.sh linux amd64`, `sh scripts/build.sh linux arm64` ou `sh scripts/build.sh android arm64`. Saídas em `build/<sistema>-<arquitetura>/`, com `hame` e `start.sh`; entre nessa pasta para iniciar. Para testar nativamente: `go test ./...` e `go vet ./...`. `powershell -ExecutionPolicy Bypass -File scripts/build-all.ps1` testa o Windows, gera seus recursos e compila os quatro alvos. CGO está desabilitado nos scripts de distribuição; isso não elimina as bibliotecas exigidas pelo seu llama.cpp.
+The code uses only the Go standard library. Declared minimum: Go 1.18. From the repository root, build with `go build ./cmd/hame`. On Linux/Termux: `sh scripts/build.sh linux amd64`, `sh scripts/build.sh linux arm64`, or `sh scripts/build.sh android arm64`. Outputs go to `build/<system>-<architecture>/`, with `hame` and `start.sh`; run from that directory. For native checks, use `go test ./...` and `go vet ./...`. `powershell -ExecutionPolicy Bypass -File scripts/build-all.ps1` checks Windows, generates its resources, and builds all four targets. CGO is disabled in distribution scripts; this does not remove libraries required by your llama.cpp build.
 
-## Organização das fontes
+## Source layout
 
-- `cmd/hame/`: código Go e testes; `cmd/hame/webui/` contém os 60 arquivos da interface vendorizada, necessários para `//go:embed all:webui`.
-- `configs/`: exemplos públicos, sem caminhos pessoais.
-- `scripts/windows/` e `scripts/unix/`: configurador e iniciadores; os scripts de build ficam em `scripts/` e o gerador de recursos em `scripts/tools/`.
-- `assets/`: ícone do aplicativo; `docs/`: arquitetura, API, portabilidade e validação.
-- `specs/HAME_1.3.yaml`: especificação arquitetural original, preservada; a versão do aplicativo é **1.02**.
-- `build/`: saídas locais ignoradas pelo Git. Modelos, llama.cpp, configurações pessoais e históricos não pertencem ao código-fonte.
+- `cmd/hame/`: Go code and tests; `cmd/hame/webui/` contains the 60 vendored interface files required by `//go:embed all:webui`.
+- `configs/`: public examples without personal paths.
+- `scripts/windows/` and `scripts/unix/`: configurator and launchers; build scripts are in `scripts/`, and the resource generator is in `scripts/tools/`.
+- `assets/`: application icon; `docs/`: architecture, API, portability, and validation.
+- `specs/HAME_1.3.yaml`: original architectural specification, preserved; the application version is **1.02**.
+- `build/`: local outputs ignored by Git. Models, llama.cpp, personal configuration, and history do not belong in the source tree.
 
-A versão 1.02 corrige a codificação dos textos da 1.01, que acrescentou execução de ferramentas à base 1.0. A WebUI precisa acompanhar qualquer checkout ou arquivo de fontes; não a remova por ser um frontend já compilado.
+Version 1.02 fixes text encoding from 1.01, which added tool execution to the 1.0 foundation. The WebUI must remain alongside any checkout or source archive; do not remove it because it is a compiled frontend.
 
-## Processos e memória
+## Processes and memory
 
-Windows mantém Job Object para seus workers. Linux/Termux usa grupos de processos próprios, trata Ctrl+C, SIGTERM e SIGHUP e mata os grupos ao sair. Não encerra outros processos de llama. Linux também solicita SIGKILL do worker direto quando o processo/thread pai morre; um SIGKILL abrupto do HAME não oferece garantia universal de limpeza de todos os netos. Nenhum sistema garante execução após o Android forçar a parada do aplicativo.
+Windows uses a Job Object for its workers. Linux/Termux uses dedicated process groups, handles Ctrl+C, SIGTERM, and SIGHUP, and terminates those groups on exit. It does not stop other llama processes. Linux also requests SIGKILL for the direct worker if the parent process/thread dies; an abrupt SIGKILL of HAME cannot universally guarantee cleanup of every descendant. No system can guarantee continued execution after Android forcibly stops the app.
 
-Constrained alterna principal e compilador somente quando há compactação. Resident mantém pesos e apaga o KV/slot real, quando o backend oferece esse mecanismo. Resumos podem omitir informações; originais ficam no disco. Fotos usam server com mmproj compatível, arquivos originais e descrições YAML; até duas referências pertinentes são preservadas deterministicamente na memória compactada. Uma referência não reanalisa a foto sozinha. Data/hora do sistema é fornecida a cada turno.
+Constrained switches between the main model and compiler only during compaction. Resident keeps weights loaded and erases the actual KV/slot when the backend provides that mechanism. Summaries may omit information; originals remain on disk. Photos use a server with a compatible mmproj, original files, and YAML descriptions; up to two relevant references are preserved deterministically in compacted memory. A reference does not re-analyze the photo on its own. System date and time are supplied on every turn.
 
-Ferramentas nativas são opcionais no backend server local: configure `tools` (nomes explícitos ou `["all"]`) e `tool_cwd` absoluto no JSON. O gateway descobre as definições reais, executa chamadas estruturadas, devolve seus resultados ao principal e preserva o ciclo no histórico e em `data/tool-audit`. O compilador e a análise de imagens não executam ferramentas. São ações com os privilégios do HAME; o diretório inicial não é sandbox. Veja os limites, requisitos e detalhes da API experimental em docs/API.md. Sem `tools`, o comportamento anterior permanece.
+Native tools are optional for the local server backend: configure `tools` (explicit names or `["all"]`) and an absolute `tool_cwd` in JSON. The gateway discovers the actual definitions, executes structured calls, returns their results to the main model, and preserves the full cycle in history and `data/tool-audit`. The compiler and image analysis do not execute tools. Actions use HAME's privileges; the working directory is not a sandbox. See docs/API.md for limits, requirements, and details of the experimental API. Without `tools`, the previous behavior remains.
 
-Veja docs/API.md, docs/ARCHITECTURE.md, docs/PORTABILITY.md e docs/VALIDATION.md. A especificação original permanece em specs/HAME_1.3.yaml.
+See docs/API.md, docs/ARCHITECTURE.md, docs/PORTABILITY.md, and docs/VALIDATION.md. The original specification remains in specs/HAME_1.3.yaml.

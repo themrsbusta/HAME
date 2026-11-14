@@ -114,7 +114,7 @@ func (e *Engine) tokenText(ctx context.Context, w *Worker, text string) (int, bo
 			return 0, false, "", err
 		}
 		if result.Tokens == nil {
-			return 0, false, "", errors.New("tokenize não retornou tokens")
+			return 0, false, "", errors.New("tokenize returned no tokens")
 		}
 		return len(result.Tokens), true, "llama-server/tokenize", nil
 	}
@@ -135,7 +135,7 @@ func (e *Engine) tokenText(ctx context.Context, w *Worker, text string) (int, bo
 			}
 			var ids []int
 			if err = json.Unmarshal(bytes.TrimSpace(stdout.Bytes()), &ids); err != nil {
-				return 0, false, "", fmt.Errorf("formato tokenizer incompatível: %w", err)
+				return 0, false, "", fmt.Errorf("incompatible tokenizer format: %w", err)
 			}
 			return len(ids), true, "llama-tokenize", nil
 		}
@@ -177,7 +177,7 @@ func (e *Engine) countMessages(ctx context.Context, w *Worker, msg []Message) (i
 		return 0, false, "", err
 	}
 	if formatted.Prompt == "" {
-		return 0, false, "", errors.New("template vazio")
+		return 0, false, "", errors.New("empty template")
 	}
 	var result struct {
 		Tokens []int `json:"tokens"`
@@ -187,7 +187,7 @@ func (e *Engine) countMessages(ctx context.Context, w *Worker, msg []Message) (i
 		return 0, false, "", err
 	}
 	if result.Tokens == nil {
-		return 0, false, "", errors.New("tokenize não retornou tokens")
+		return 0, false, "", errors.New("tokenize returned no tokens")
 	}
 	return len(result.Tokens), true, "llama-server formatted prompt/tokenize + special tokens", nil
 }
@@ -219,7 +219,7 @@ func (e *Engine) slots(ctx context.Context, w *Worker) ([]map[string]any, error)
 	}
 	defer r.Body.Close()
 	if r.StatusCode != 200 {
-		return nil, fmt.Errorf("Resident incompatível: GET /slots HTTP %d", r.StatusCode)
+		return nil, fmt.Errorf("Resident is incompatible: GET /slots returned HTTP %d", r.StatusCode)
 	}
 	var slots []map[string]any
 	err = json.NewDecoder(r.Body).Decode(&slots)
@@ -233,7 +233,7 @@ func (e *Engine) slotCount(ctx context.Context, w *Worker) (int, error) {
 	for _, s := range slots {
 		if id, ok := s["id"].(float64); ok && int(id) == 0 {
 			if busy, _ := s["is_processing"].(bool); busy {
-				return 0, errors.New("slot 0 ainda está ocupada")
+				return 0, errors.New("slot 0 is still occupied")
 			}
 			if n, ok := s["n_prompt_tokens"].(float64); ok {
 				return int(n), nil
@@ -241,10 +241,10 @@ func (e *Engine) slotCount(ctx context.Context, w *Worker) (int, error) {
 			if _, hasTask := s["id_task"]; !hasTask {
 				return 0, nil
 			}
-			return 0, errors.New("backend não expõe tokens da slot")
+			return 0, errors.New("backend does not expose slot tokens")
 		}
 	}
-	return 0, errors.New("slot 0 não encontrada")
+	return 0, errors.New("slot 0 not found")
 }
 func (e *Engine) eraseSlot(ctx context.Context, w *Worker, reason string) error {
 	before, err := e.slotCount(ctx, w)
@@ -255,17 +255,17 @@ func (e *Engine) eraseSlot(ctx context.Context, w *Worker, reason string) error 
 		Erased *int `json:"n_erased"`
 	}
 	if err = e.post(ctx, w, "/slots/0?action=erase", map[string]any{}, &result); err != nil {
-		return fmt.Errorf("Resident incompatível: %w", err)
+		return fmt.Errorf("Resident is incompatible: %w", err)
 	}
 	if result.Erased == nil {
-		return errors.New("erase não confirmou n_erased")
+		return errors.New("erase did not confirm n_erased")
 	}
 	after, err := e.slotCount(ctx, w)
 	if err != nil {
 		return err
 	}
 	if after != 0 {
-		return fmt.Errorf("KV não foi invalidado: %d tokens restantes", after)
+		return fmt.Errorf("KV cache was not invalidated: %d tokens remain", after)
 	}
 	if before > 0 && *result.Erased < before {
 		return fmt.Errorf("erase incompleto: %d de %d", *result.Erased, before)
@@ -276,7 +276,7 @@ func (e *Engine) eraseSlot(ctx context.Context, w *Worker, reason string) error 
 func (e *Engine) initialize(ctx context.Context, test bool) error {
 	if e.cfg.Backend == "cli" {
 		if e.cfg.Mode == "resident" {
-			return errors.New("CLI por tarefas não suporta Resident")
+			return errors.New("task-based CLI does not support Resident mode")
 		}
 		return nil
 	}
@@ -290,11 +290,11 @@ func (e *Engine) initialize(ctx context.Context, test bool) error {
 	if e.cfg.Mode == "resident" {
 		pid := workerPID(w)
 		if err = e.prime(ctx, Session{Messages: []Message{{Role: "system", Content: "HAME Resident slot compatibility check."}}}); err != nil {
-			return fmt.Errorf("Resident prefill incompatível: %w", err)
+			return fmt.Errorf("Resident prefill is incompatible: %w", err)
 		}
 		n, err := e.slotCount(ctx, w)
 		if err != nil || n == 0 {
-			return fmt.Errorf("Resident não confirmou cache do teste: %d, %v", n, err)
+			return fmt.Errorf("Resident did not confirm test cache: %d, %v", n, err)
 		}
 		if err = e.eraseSlot(ctx, w, "startup_capability_probe"); err != nil {
 			return err
@@ -331,7 +331,7 @@ func (e *Engine) stateFromMain(ctx context.Context, id, pending string, s Sessio
 			break
 		}
 		if len(messages) <= 2 {
-			return state, errors.New("estado não cabe no orçamento")
+			return state, errors.New("state does not fit within the budget")
 		}
 		messages = append(messages[:1], messages[2:]...)
 	}
@@ -407,7 +407,7 @@ func (e *Engine) compileState(ctx context.Context, id string, state State, s Ses
 			return er
 		}
 		if u.Total > e.cfg.Context {
-			return errors.New("lote do compilador excede contexto")
+			return errors.New("compiler batch exceeds the context")
 		}
 		previous, _ := json.Marshal(c)
 		next, er := e.checkedCompiled(ctx, worker, msg, source+string(stateData)+string(previous), id)
@@ -453,7 +453,7 @@ func (e *Engine) compileState(ctx context.Context, id string, state State, s Ses
 					continue
 				}
 				if take <= 1 {
-					return c, nil, errors.New("estado e memória anterior não deixam espaço para fontes")
+					return c, nil, errors.New("state and previous memory leave no room for sources")
 				}
 				take /= 2
 			}
@@ -490,7 +490,7 @@ func (e *Engine) compileState(ctx context.Context, id string, state State, s Ses
 			}
 		}
 		if n > e.memoryLimit() {
-			return c, nil, errors.New("referências de imagem excedem memória compilada; aumente compiled_memory_max_tokens")
+					return c, nil, errors.New("image references exceed compiled memory; increase compiled_memory_max_tokens")
 		}
 	}
 	if err = atomicJSON(e.path(id, ".compiled.json"), c); err != nil {
@@ -540,7 +540,7 @@ func (e *Engine) compactLocked(ctx context.Context, id, pending string, s *Sessi
 		return tokenErr
 	}
 	if memoryTokens > e.memoryLimit() {
-		return fmt.Errorf("memória excede máximo no vocabulário principal: %d/%d", memoryTokens, e.memoryLimit())
+		return fmt.Errorf("memory exceeds the main model's limit: %d/%d", memoryTokens, e.memoryLimit())
 	}
 	candidate := append([]Message{}, newSession.Messages...)
 	if pending != "" {
@@ -551,7 +551,7 @@ func (e *Engine) compactLocked(ctx context.Context, id, pending string, s *Sessi
 		return err
 	}
 	if u.Total > e.cfg.Context {
-		return fmt.Errorf("memória compilada + nova mensagem excedem contexto (%d/%d); reduza entrada ou memória", u.Total, e.cfg.Context)
+		return fmt.Errorf("compiled memory + new message exceed context (%d/%d); reduce the input or memory", u.Total, e.cfg.Context)
 	}
 	if e.cfg.Mode == "resident" {
 		e.status(id, "invalidating_context", nil)
@@ -580,7 +580,7 @@ func (e *Engine) chat(ctx context.Context, id, user string, force bool) (string,
 }
 func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrieve bool) (string, error) {
 	if !safeID.MatchString(id) || strings.TrimSpace(user) == "" {
-		return "", errors.New("sessão inválida ou mensagem vazia")
+		return "", errors.New("invalid session or empty message")
 	}
 	originalUser := user
 	if strings.HasPrefix(strings.TrimSpace(user), "/recuperar ") {
@@ -605,7 +605,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		return "", err
 	}
 	if solo.Total > e.cfg.Context {
-		return "", fmt.Errorf("nova mensagem sozinha exige %d/%d tokens com reservas; entrada não enviada ao modelo", solo.Total, e.cfg.Context)
+		return "", fmt.Errorf("the new message alone requires %d/%d tokens with reserves; input was not sent to the model", solo.Total, e.cfg.Context)
 	}
 	candidate := append(append([]Message{}, s.Messages...), Message{Role: "user", Content: user})
 	u, err := e.usage(ctx, w, candidate, e.reserve())
@@ -622,7 +622,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		policy = "hybrid"
 	}
 	if retrieve && policy == "automatic" && !force {
-		return "", errors.New("política automática não aciona recuperação por pergunta; use o comando manual ou política híbrida")
+		return "", errors.New("the automatic policy does not trigger recovery from a question; use the manual command or the Hybrid policy")
 	}
 	automatic := policy != "on_demand" && u.Percent >= float64(threshold)
 	if force || retrieve || automatic {
@@ -646,7 +646,7 @@ func (e *Engine) chatRequest(ctx context.Context, id, user string, force, retrie
 		}
 	}
 	if u.Total > e.cfg.Context {
-		return "", fmt.Errorf("contexto cheio (%d/%d): solicite compactação manual", u.Total, e.cfg.Context)
+		return "", fmt.Errorf("context is full (%d/%d): request manual compaction", u.Total, e.cfg.Context)
 	}
 	e.status(id, "responding", nil)
 	reply, trace, err := e.chatWithTools(ctx, w, id, candidate)
@@ -782,7 +782,7 @@ func (e *Engine) checkedState(ctx context.Context, w *Worker, messages []Message
 		}
 		var fields map[string]json.RawMessage
 		if err = decodeContract(raw, &fields); err != nil {
-			return state, fmt.Errorf("context_state inválido: %w", err)
+			return state, fmt.Errorf("invalid context_state: %w", err)
 		}
 		for _, key := range []string{"session_id", "current_goal", "unresolved_question", "last_summary", "search_intent"} {
 			value, ok := fields[key]
@@ -791,14 +791,14 @@ func (e *Engine) checkedState(ctx context.Context, w *Worker, messages []Message
 			}
 			var text string
 			if err = json.Unmarshal(value, &text); err != nil {
-				return state, fmt.Errorf("campo %s não é string", key)
+				return state, fmt.Errorf("field %s is not a string", key)
 			}
 		}
 		if err = decodeContract(raw, &state); err != nil {
 			return state, err
 		}
 		if strings.TrimSpace(state.CurrentGoal) == "" || strings.TrimSpace(state.SearchIntent) == "" {
-			return state, errors.New("context_state sem intenção semântica")
+				return state, errors.New("context_state has no semantic intent")
 		}
 		if unknown := unknownIDs(raw, evidence); len(unknown) == 0 {
 			return state, nil
@@ -811,11 +811,11 @@ func (e *Engine) checkedState(ctx context.Context, w *Worker, messages []Message
 				return state, err
 			}
 			if u.Total > e.cfg.Context {
-				return state, errors.New("correção de identificadores não cabe no contexto")
+				return state, errors.New("identifier correction does not fit in the context")
 			}
 		}
 	}
-	return State{}, errors.New("context_state alterou identificadores originais após tentativa de correção")
+	return State{}, errors.New("context_state changed original identifiers after a correction attempt")
 }
 
 func (e *Engine) checkedCompiled(ctx context.Context, w *Worker, msg []Message, evidence, id string) (Compiled, error) {
@@ -826,7 +826,7 @@ func (e *Engine) checkedCompiled(ctx context.Context, w *Worker, msg []Message, 
 			return Compiled{}, err
 		}
 		if u.Total > e.cfg.Context {
-			return Compiled{}, errors.New("correção de contrato não cabe no lote")
+			return Compiled{}, errors.New("contract correction does not fit in the batch")
 		}
 		raw, err := e.generate(ctx, w, msg, e.memoryLimit(), CompiledSchema)
 		if err != nil {
@@ -845,7 +845,7 @@ func (e *Engine) checkedCompiled(ctx context.Context, w *Worker, msg []Message, 
 			last = errors.New("compiled_prompt incompleto")
 		}
 		if last == nil && len(unknownIDs(raw, evidence)) > 0 {
-			last = errors.New("compiled_prompt alterou identificadores das fontes")
+			last = errors.New("compiled_prompt changed source identifiers")
 		}
 		if last == nil {
 			n, _, _, er := e.tokenText(ctx, w, raw)
@@ -853,7 +853,7 @@ func (e *Engine) checkedCompiled(ctx context.Context, w *Worker, msg []Message, 
 				return c, er
 			}
 			if n > e.memoryLimit() {
-				last = fmt.Errorf("compiled_prompt tem %d tokens; máximo %d", n, e.memoryLimit())
+				last = fmt.Errorf("compiled_prompt has %d tokens; maximum is %d", n, e.memoryLimit())
 			}
 		}
 		if last == nil {

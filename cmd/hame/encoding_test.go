@@ -19,7 +19,7 @@ func TestInterfaceUTF8(t *testing.T) {
 	if !utf8.Valid(data) {
 		t.Fatal("interface is not UTF-8")
 	}
-	for _, text := range []string{"memória por ocupação", "Recuperar histórico", "Falha na compactação", "Memória renovada; histórico preservado.", "orçamento"} {
+	for _, text := range []string{"memory usage", "Recover history", "Compaction failed", "Memory refreshed; history preserved.", "budget"} {
 		if !bytes.Contains(data, []byte(text)) {
 			t.Errorf("missing correctly encoded UI text %q", text)
 		}
@@ -41,7 +41,7 @@ func TestInterfaceUTF8(t *testing.T) {
 		if !strings.Contains(w.Header().Get("Content-Type"), "charset=utf-8") {
 			t.Errorf("%s lacks HTTP UTF-8 charset", path)
 		}
-		if !strings.Contains(w.Body.String(), "memória por ocupação") {
+		if !strings.Contains(w.Body.String(), "memory usage") {
 			t.Errorf("%s lost accents", path)
 		}
 	}

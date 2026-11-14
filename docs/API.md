@@ -1,37 +1,36 @@
 # API — HAME 1.01
 
-POST /v1/chat/completions preserva o formato anterior e acrescenta compile e retrieve opcionais. session_id ou X-Conversation-Id identifica a sessão. Apenas a última mensagem user vinda da WebUI é usada; o contexto ativo pertence ao HAME.
+POST `/v1/chat/completions` preserves the previous format and adds optional `compile` and `retrieve` fields. `session_id` or `X-Conversation-Id` identifies the session. Only the last user message from the WebUI is used; HAME owns the active context.
 
 ```json
-{"session_id":"exemplo","messages":[{"role":"user","content":"Qual era o código?"}],"retrieve":true}
+{"session_id":"example","messages":[{"role":"user","content":"What was the code?"}],"retrieve":true}
 ```
 
-compile=true solicita compactação manual antes da resposta. retrieve=true solicita recuperação completa nas políticas Sob demanda/Híbrida. O prefixo /recuperar na mensagem equivale a retrieve=true.
+`compile=true` requests manual compaction before the response. `retrieve=true` requests full recovery under the On-demand/Hybrid policies. The existing `/recuperar` message prefix is equivalent to `retrieve=true`.
 
-POST /hame/compact: {"session_id":"exemplo","recover":false}. Em branco, usa a sessão ativa. recover=true relê o histórico original. A operação é síncrona e não apaga a conversa.
+POST `/hame/compact`: `{"session_id":"example","recover":false}`. If blank, the active session is used. `recover=true` rereads the original history. The operation is synchronous and does not delete the conversation.
 
-GET /hame/runtime: versão, modo, política, sessão ativa, telemetria e eventos de operação. GET /hame/status?session_id=... preserva os campos anteriores e inclui mode/context_usage. A contagem informa prompt_tokens, reserved_response_tokens, template_reserve_tokens, budget_tokens, budget_percent, exact_prompt e method. exact_prompt=false identifica a reserva de template do CLI ou fallback sem tokenizer.
+GET `/hame/runtime`: version, mode, policy, active session, telemetry, and operation events. GET `/hame/status?session_id=...` preserves the previous fields and adds `mode/context_usage`. Counts include `prompt_tokens`, `reserved_response_tokens`, `template_reserve_tokens`, `budget_tokens`, `budget_percent`, `exact_prompt`, and `method`. `exact_prompt=false` identifies the CLI template reserve or the fallback used without a tokenizer.
 
-GET /hame/history preserva as mensagens originais. /health não garante prontidão dos modelos. /props e /v1/models continuam com identidade real do principal. SSE ainda entrega texto completo ao final.
+GET `/hame/history` preserves original messages. `/health` does not guarantee that models are ready. `/props` and `/v1/models` continue to report the main model's actual identity. SSE still returns the complete text at the end.
 
-Clientes locais: HAME.exe -memory-status; HAME.exe -compact -session exemplo; HAME.exe -compact -recover. Eles conferem a versão do serviço para não operar silenciosamente em outra instalação.
+Local clients: `HAME.exe -memory-status`; `HAME.exe -compact -session example`; `HAME.exe -compact -recover`. They check the service version so they do not silently operate on another installation.
 
-Falhas de geração/compactação retornam erro HTTP e preservam os arquivos originais. A falta de espaço em Sob demanda exige ação manual antes de inferir.
+Generation/compaction errors return an HTTP error and preserve original files. When the On-demand policy runs out of space, manual action is required before inference.
 
+## Images and YAML
 
-## Imagens e YAML
+With a server configured using `main_mmproj`, the last user message may contain `content: [{"type":"text","text":"Remember this photo"},{"type":"image_url","image_url":{"url":"data:image/png;base64,..."}}]`. The main model generates a brief description before the text conversation; the photo and YAML are stored in `context/<session>/media`. Up to four images per message, 10 MiB/40 MP per image, and 32 MiB total JSON body. PNG/JPEG/GIF are supported; external URLs and other types are rejected. CLI does not provide this flow.
 
-Server com `main_mmproj`: a última mensagem user pode conter `content: [{"type":"text","text":"Guarde esta foto"},{"type":"image_url","image_url":{"url":"data:image/png;base64,..."}}]`. O principal gera uma descrição breve antes da conversa textual; foto e YAML ficam em `context/<sessao>/media`. Quatro imagens por mensagem, 10 MiB/40 MP por imagem; corpo JSON total de até 32 MiB. PNG/JPEG/GIF; URLs externas e outros tipos são rejeitados. CLI não oferece este fluxo.
+`GET /hame/media?session_id=<session>&file=<sha256>.png` retrieves the original bytes; `.yaml` retrieves the metadata. Only valid hash names and sessions are accepted. This is a local route, like the chat API; there is no authentication between conversations.
 
-`GET /hame/media?session_id=<sessao>&file=<sha256>.png` recupera os bytes originais; `.yaml` recupera os metadados. Somente nomes de hash e sessões válidas são aceitos. A rota é local, assim como a API do chat; não oferece autenticação entre conversas.
+The compiler includes `.yaml`/`.yml` in its incremental sources. The catalog stays outside the KV cache and summary. Up to two relevant references are deterministically re-injected into compacted memory. Retrieving a description/link does not perform a new visual analysis of the original.
 
-O compilador inclui `.yaml`/`.yml` em suas fontes incrementais. O catálogo fica fora do KV cache e da síntese. Até duas referências pertinentes são reinjetadas deterministicamente na memória compactada. Recuperar a descrição/link não equivale a uma nova análise visual do original.
+GET `/hame/get_datetime`: system clock, ISO 8601/time zone/offset/Unix time; no cache is used. The main model automatically receives an updated reading on each turn. This is not a generic tool-calling cycle.
 
-GET /hame/get_datetime: relógio do sistema, ISO 8601/fuso/offset/Unix; não usa cache. O principal recebe automaticamente uma leitura atualizada a cada turno. Não é um ciclo genérico de chamadas de ferramentas.
+## Native llama-server tools
 
-## Ferramentas nativas do llama-server
-
-Opt-in no `config.json` (desativado quando `tools` está ausente):
+Opt-in in `config.json` (disabled when `tools` is absent):
 
 ```json
 {
@@ -42,10 +41,10 @@ Opt-in no `config.json` (desativado quando `tools` está ausente):
 }
 ```
 
-`["all"]` habilita as ferramentas conhecidas anunciadas pelo servidor: read_file, file_glob_search, grep_search, exec_shell_command, write_file, edit_file e get_info. Requer backend server local gerenciado pelo HAME e suporte real a `--tools`. O HAME acrescenta esse argumento somente ao principal; não o repita em `main_extra_args`. `tool_cwd` é obrigatório e absoluto; define o diretório inicial, **não** uma sandbox. Comandos herdam os privilégios do processo; habilite apenas em estação local confiável.
+`["all"]` enables the known tools advertised by the server: `read_file`, `file_glob_search`, `grep_search`, `exec_shell_command`, `write_file`, `edit_file`, and `get_info`. This requires a local server backend managed by HAME and actual `--tools` support. HAME adds this argument only to the main model; do not repeat it in `main_extra_args`. `tool_cwd` is required and must be absolute; it defines the working directory, **not** a sandbox. Commands inherit process privileges; enable this only on a trusted local workstation.
 
-`GET /tools` descobre e lista as definições reais do worker. `POST /tools` no HAME é recusado: o executor nativo não é exposto como proxy HTTP. O chat descobre as definições, envia `tools`, valida IDs, nomes e argumentos estruturados, executa cada chamada e devolve `role=tool`/`tool_call_id` antes de continuar a geração. Texto livre nunca é interpretado como comando. Descrições de imagens, extração de estado e compilador não executam ferramentas. Clientes do chat continuam recebendo a resposta textual final, inclusive em SSE; o histórico contém o ciclo completo.
+`GET /tools` discovers and lists the worker's actual tool definitions. `POST /tools` on HAME is rejected: the native executor is not exposed as an HTTP proxy. Chat discovers the definitions, sends `tools`, validates IDs, names, and structured arguments, executes each call, and returns `role=tool`/`tool_call_id` before continuing generation. Free text is never interpreted as a command. Image descriptions, state extraction, and the compiler do not run tools. Chat clients continue to receive the final textual response, including over SSE; history contains the complete cycle.
 
-Limite por turno: 1–32 chamadas (padrão 8). Timeout: 1–120 s (padrão 30); o timeout nativo de shell é limitado por essa configuração. O prazo HTTP das outras ferramentas não garante cancelamento de efeitos no servidor. Falha de transporte não gera repetição automática: uma operação pode ter ocorrido. Cada chamada é registrada antes e depois em `data_dir/tool-audit/<sessao>/*.json`; em falha após execução, consulte esse registro antes de repetir a tarefa. Saída de comando com exit code diferente de zero continua sendo um resultado de ferramenta, não sucesso presumido.
+Per-turn limit: 1–32 calls (default 8). Timeout: 1–120 s (default 30); the native shell timeout is limited by this setting. The HTTP deadline for other tools does not guarantee that server-side effects are cancelled. Transport failure does not trigger automatic retry: an operation may have completed. Each call is logged before and after execution in `data_dir/tool-audit/<session>/*.json`; if a failure occurs after execution, check that record before retrying the task. A command's nonzero exit code remains a tool result and is not treated as presumed success.
 
-O ciclo inclui as definições no orçamento de contexto e interrompe antes de uma nova inferência se não houver espaço. Resultados já executados permanecem no audit mesmo se o turno falhar. O serviço continua em loopback, recusa Host externo, Origin de outro site, chamadas cross-site e POST sem application/json quando ferramentas estão habilitadas. Não há autenticação contra outros programas locais: quem pode chamar o chat pode solicitar ações com os privilégios do HAME. A API interna `/tools` do llama.cpp é experimental e precisa ser revalidada ao trocar de build; validada localmente com b11946.
+The cycle counts tool definitions against the context budget and stops before another inference if there is not enough room. Results from completed calls remain in the audit log even if the turn fails. The service stays on loopback, rejects external Host headers, cross-site Origins and requests, and POST requests without `application/json` when tools are enabled. There is no authentication against other local programs: any process that can call chat can request actions with HAME's privileges. The llama.cpp internal `/tools` API is experimental and must be revalidated after changing builds; it was validated locally with b11946.

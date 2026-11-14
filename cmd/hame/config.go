@@ -78,7 +78,7 @@ func probe(ctx context.Context, path, backend string) (*Profile, error) {
 	}
 	info, err := os.Stat(path)
 	if err != nil || info.IsDir() {
-		return nil, fmt.Errorf("executável não encontrado: %s", path)
+		return nil, fmt.Errorf("executable not found: %s", path)
 	}
 	help, err := capture(ctx, path, "--help")
 	if err != nil {
@@ -114,7 +114,7 @@ func validateProfile(p *Profile) error {
 	}
 	for _, f := range required {
 		if !p.Flags[f] {
-			return fmt.Errorf("llama %s incompatível: parâmetro necessário %s ausente; versão: %s", p.Backend, f, p.Version)
+			return fmt.Errorf("llama %s is incompatible: required parameter %s is missing; version: %s", p.Backend, f, p.Version)
 		}
 	}
 	return nil
@@ -158,7 +158,7 @@ func load(path string) (Config, error) {
 		c.GPULayers = "auto"
 	}
 	if !regexp.MustCompile(`^(auto|all|[0-9]+)$`).MatchString(c.GPULayers) {
-		return c, errors.New("gpu_layers deve ser auto, all ou um inteiro não negativo")
+		return c, errors.New("gpu_layers must be auto, all, or a non-negative integer")
 	}
 	if c.Context == 0 {
 		c.Context = 8192
@@ -185,41 +185,41 @@ func load(path string) (Config, error) {
 		}
 	}
 	if c.Threshold < 10 || c.Threshold > 99 {
-		return c, errors.New("gatilho deve estar entre 10 e 99%")
+		return c, errors.New("trigger must be between 10 and 99%")
 	}
 	if c.Policy != "automatic" && c.Policy != "on_demand" && c.Policy != "hybrid" {
-		return c, errors.New("política inválida")
+		return c, errors.New("invalid policy")
 	}
 	if c.Reserve < c.Output || c.Reserve+c.TemplateReserve >= c.Context || c.TemplateReserve < 0 {
-		return c, errors.New("reserva deve cobrir a saída e deixar espaço no contexto")
+		return c, errors.New("the reserve must cover the output and leave room in the context")
 	}
 	if c.MemoryMax < 128 || c.MemoryMax+c.Reserve+c.TemplateReserve >= c.Context {
-		return c, errors.New("orçamento da memória compilada inválido")
+		return c, errors.New("invalid compiled-memory budget")
 	}
 	if _, err := parseStartupArgs(c.MainExtraArgs); err != nil {
 		return c, err
 	}
 	if c.Backend != "server" && c.Backend != "cli" {
-		return c, errors.New("backend deve ser server ou cli")
+		return c, errors.New("backend must be server or cli")
 	}
 	if c.Backend == "cli" && c.Mode == "resident" {
-		return c, errors.New("CLI executa por tarefa; selecione o modo constrained")
+		return c, errors.New("CLI runs one task at a time; select Constrained mode")
 	}
 	if c.Mode != "resident" && c.Mode != "constrained" {
-		return c, errors.New("modo deve ser resident ou constrained")
+		return c, errors.New("mode must be Resident or Constrained")
 	}
 	if c.Context < 2048 || c.Output < 128 || c.Output > c.Context/2 {
-		return c, errors.New("orçamento de contexto inválido")
+		return c, errors.New("invalid context budget")
 	}
 	if c.Backend == "cli" && (c.MainURL != "" || c.CompilerURL != "") {
-		return c, errors.New("CLI não aceita URLs de servidores")
+		return c, errors.New("CLI does not accept server URLs")
 	}
 	if c.Mode == "constrained" && (c.MainURL != "" || c.CompilerURL != "") {
-		return c, errors.New("constrained exige processos locais")
+		return c, errors.New("Constrained requires local processes")
 	}
 	host, _, err := net.SplitHostPort(c.Listen)
 	if err != nil || host != "127.0.0.1" {
-		return c, errors.New("listen deve ser 127.0.0.1:porta")
+		return c, errors.New("listen must be 127.0.0.1:port")
 	}
 	base, _ := filepath.Abs(filepath.Dir(path))
 	resolve := func(value string) string {
@@ -276,29 +276,29 @@ func (e *Engine) validate(ctx context.Context) error {
 		return err
 	}
 	if e.cfg.toolsEnabled() && !profile.Flags["--tools"] {
-		return errors.New("llama-server não anuncia --tools")
+		return errors.New("llama-server does not advertise --tools")
 	}
 	for _, path := range []string{e.cfg.MainModel, e.cfg.CompilerModel} {
 		if path == "" {
-			return errors.New("selecione os dois modelos GGUF")
+			return errors.New("select both GGUF models")
 		}
 		info, er := os.Stat(path)
 		if er != nil || info.IsDir() {
-			return fmt.Errorf("modelo não encontrado: %s", path)
+			return fmt.Errorf("model not found: %s", path)
 		}
 	}
 
 	if e.cfg.MainMMProj != "" {
 		if !profile.Flags["--mmproj"] {
-			return errors.New("o llama selecionado não anuncia suporte a --mmproj")
+			return errors.New("the selected llama does not advertise --mmproj support")
 		}
 		info, err := os.Stat(e.cfg.MainMMProj)
 		if err != nil || info.IsDir() {
-			return fmt.Errorf("projetor mmproj não encontrado: %s", e.cfg.MainMMProj)
+			return fmt.Errorf("mmproj projector not found: %s", e.cfg.MainMMProj)
 		}
 		for _, arg := range strings.Fields(e.cfg.MainExtraArgs) {
 			if arg == "--mmproj" || strings.HasPrefix(arg, "--mmproj=") {
-				return errors.New("configure mmproj no campo próprio, sem repetir nos argumentos extras")
+				return errors.New("configure mmproj in its dedicated field; do not repeat it in extra arguments")
 			}
 		}
 	}
@@ -308,9 +308,9 @@ func (e *Engine) validate(ctx context.Context) error {
 				d := automaticDevice(profile.Devices)
 				*choice.id = d.ID
 				*choice.name = d.Name
-				fmt.Printf("GPU automática: %s %s\n", d.ID, d.Name)
+				fmt.Printf("Automatic GPU: %s %s\n", d.ID, d.Name)
 			} else {
-				fmt.Println("GPU automática: seleção delegada ao llama (sem --device)")
+				fmt.Println("Automatic GPU: selection delegated to llama (without --device)")
 			}
 		}
 	}
@@ -322,7 +322,7 @@ func (e *Engine) validate(ctx context.Context) error {
 			continue
 		}
 		if !profile.Flags["--device"] {
-			return errors.New("este llama não suporta seleção explícita --device")
+			return errors.New("this llama build does not support explicit --device selection")
 		}
 		if id == "none" {
 			continue
@@ -336,16 +336,16 @@ func (e *Engine) validate(ctx context.Context) error {
 					expected = e.cfg.CompilerDeviceName
 				}
 				if expected != "" && device.Name != expected {
-					return fmt.Errorf("a GPU %s mudou de identidade; selecione novamente no configurador", id)
+					return fmt.Errorf("GPU %s has changed identity; select it again in the configurator", id)
 				}
 			}
 		}
 		if !found && !manualPlatform {
-			return fmt.Errorf("GPU %s não foi encontrada pelo llama selecionado", id)
+			return fmt.Errorf("GPU %s was not found by the selected llama", id)
 		}
 	}
 	if e.cfg.Mode == "resident" && !profile.Resident {
-		return errors.New("Resident incompatível: exige server com slots, slot-save-path, cache-ram e controle de cache idle; use Testar modo para validar os endpoints reais")
+		return errors.New("Resident is incompatible: requires a server with slots, slot-save-path, cache-ram, and idle-cache control; use Test mode to validate the actual endpoints")
 	}
 	extra, err := validateStartupArgs(e.cfg.MainExtraArgs, profile)
 	if err != nil {

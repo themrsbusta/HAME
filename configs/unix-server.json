@@ -20,7 +20,7 @@
   "prefill_compiled_context": true,
   "main_extra_args": "",
   "main_mmproj": "",
-  "llama_version": "declare sua versão do llama.cpp",
+  "llama_version": "enter your llama.cpp version",
   "llama_capabilities": [
     "--model",
     "--ctx-size",

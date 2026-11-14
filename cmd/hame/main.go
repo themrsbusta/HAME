@@ -269,7 +269,7 @@ func (e *Engine) generate(ctx context.Context, w *Worker, msg []Message, limit i
 		return "", err
 	}
 	if len(response.Choices) == 0 || response.Choices[0].Message.Content == "" {
-		return "", errors.New("resposta LLM vazia")
+		return "", errors.New("LLM response is empty")
 	}
 	w.lastPromptTokens = response.Usage.PromptTokens
 	return response.Choices[0].Message.Content, nil
@@ -279,7 +279,7 @@ func decodeContract(s string, v any) error {
 	if strings.HasPrefix(s, "```") {
 		i := strings.Index(s, "\n")
 		if i < 0 {
-			return errors.New("JSON inválido")
+			return errors.New("invalid JSON")
 		}
 		s = strings.TrimSuffix(strings.TrimSpace(s[i+1:]), "```")
 	}
@@ -325,7 +325,7 @@ func main() {
 	}
 	if *configure {
 		if manualPlatform {
-			log.Print("Linux/Termux: edite config.json; configurador indisponível")
+			log.Print("Linux/Termux: edit config.json; configurator unavailable")
 			os.Exit(1)
 		}
 		if err := showConfigurator(*config); err != nil {
@@ -346,7 +346,7 @@ func main() {
 			log.Print(err)
 			os.Exit(1)
 		}
-		log.Printf("Configuração necessária: %v", err)
+		log.Printf("Configuration required: %v", err)
 		if er := showConfigurator(*config); er != nil {
 			log.Print(er)
 			return
@@ -365,10 +365,10 @@ func main() {
 		return
 	}
 	defer removeHandler()
-	setConsoleTitle("HAME " + Version + " — feche esta janela para encerrar os modelos")
+	setConsoleTitle("HAME " + Version + " — close this window to stop the models")
 	e := &Engine{cfg: c, client: &http.Client{Timeout: 3 * time.Minute}, lifecycle: ctx}
 	if err = e.validate(ctx); err != nil {
-		log.Printf("Configuração/compatibilidade: %v", err)
+		log.Printf("Configuration/compatibility: %v", err)
 		if *check || manualPlatform {
 			os.Exit(1)
 		}
@@ -388,12 +388,12 @@ func main() {
 		}
 	}
 	if *check {
-		fmt.Println("Configuração válida — " + e.profile.Version)
+		fmt.Println("Configuration is valid — " + e.profile.Version)
 		return
 	}
 	defer e.close()
 	if err = e.initialize(ctx, *testMode); err != nil {
-		log.Printf("Modo incompatível: %v", err)
+		log.Printf("Incompatible mode: %v", err)
 		e.close()
 		os.Exit(1)
 	}
@@ -414,8 +414,8 @@ func main() {
 	}
 	defer listener.Close()
 	go func() { <-ctx.Done(); _ = srv.Close() }()
-	log.Printf("HAME %s | motor=%s | modelo=%s | %s", Version, c.Backend, e.displayModel(), c.Listen)
-	log.Print("Ctrl+C ou fechar esta janela: encerra HAME e apenas os workers que ele iniciou.")
+	log.Printf("HAME %s | backend=%s | model=%s | %s", Version, c.Backend, e.displayModel(), c.Listen)
+	log.Print("Ctrl+C or closing this window stops HAME and only the workers it started.")
 	if *autoOpen {
 		openBrowser("http://" + c.Listen)
 	}

@@ -58,7 +58,7 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 		return &Worker{cli: true, model: model, compiler: compiler}, nil
 	}
 	if model == "" {
-		return nil, errors.New("modelo não configurado")
+		return nil, errors.New("model is not configured")
 	}
 	listener, err := net.Listen("tcp", fmt.Sprintf("127.0.0.1:%d", port))
 	if err != nil {
@@ -121,7 +121,7 @@ func (e *Engine) start(ctx context.Context, compiler bool) (*Worker, error) {
 			return nil, ctx.Err()
 		case <-deadline.C:
 			w.stop()
-			return nil, errors.New("timeout ao carregar modelo")
+			return nil, errors.New("timed out while loading model")
 		case <-tick.C:
 			req, _ := http.NewRequestWithContext(ctx, "GET", w.url+"/health", nil)
 			r, er := e.client.Do(req)
@@ -142,7 +142,7 @@ func logWorker(tag string, pid int, model string) {
 }
 func (e *Engine) cliGenerate(ctx context.Context, w *Worker, msg []Message, limit int, schemaText string) (string, error) {
 	if e.profile == nil {
-		return "", errors.New("perfil CLI não validado")
+		return "", errors.New("CLI profile has not been validated")
 	}
 	dir, err := os.MkdirTemp(e.cfg.Data, "cli-task-")
 	if os.IsNotExist(err) {
@@ -204,7 +204,7 @@ func cleanCLIFile(raw, prompt string) (string, error) {
 	prompt = strings.ReplaceAll(prompt, "\r\n", "\n")
 	prefix := "User:\n" + prompt + "\n\nAssistant:\n"
 	if !strings.HasPrefix(raw, prefix) {
-		return "", errors.New("formato do arquivo de saída do CLI mudou; use server ou uma versão CLI testada")
+		return "", errors.New("CLI output file format changed; use server mode or a tested CLI version")
 	}
 	text := strings.TrimSpace(strings.TrimPrefix(raw, prefix))
 	if strings.HasPrefix(text, "[Start thinking]") {
@@ -213,7 +213,7 @@ func cleanCLIFile(raw, prompt string) (string, error) {
 		}
 	}
 	if text == "" {
-		return "", errors.New("CLI não gerou resposta; verifique versão, template e modelo")
+		return "", errors.New("CLI produced no response; check the version, template, and model")
 	}
 	return text, nil
 }
@@ -224,7 +224,7 @@ func cleanCLIOutput(raw, prompt string) (string, error) {
 	marker := "> " + prompt + "\n"
 	i := strings.Index(raw, marker)
 	if i < 0 {
-		return "", errors.New("formato de saída do llama-cli mudou: não foi possível separar a resposta; use server ou uma versão CLI testada")
+		return "", errors.New("llama-cli output format changed: could not extract the response; use server mode or a tested CLI version")
 	}
 	text := raw[i+len(marker):]
 	if at := strings.LastIndex(text, "\nExiting..."); at >= 0 && strings.TrimSpace(text[at:]) == "Exiting..." {
@@ -232,7 +232,7 @@ func cleanCLIOutput(raw, prompt string) (string, error) {
 	}
 	text = strings.TrimSpace(text)
 	if text == "" {
-		return "", errors.New("resposta CLI vazia")
+		return "", errors.New("CLI response is empty")
 	}
 	return text, nil
 }
@@ -245,7 +245,7 @@ func (e *Engine) displayModel() string {
 	if e.cfg.MainModel != "" {
 		return filepath.Base(e.cfg.MainModel)
 	}
-	return "modelo não configurado"
+	return "model is not configured"
 }
 func (e *Engine) refreshMetadata(ctx context.Context, w *Worker) {
 	req, _ := http.NewRequestWithContext(ctx, "GET", w.url+"/props", nil)

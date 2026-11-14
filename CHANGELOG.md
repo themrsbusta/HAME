@@ -1,36 +1,36 @@
-# Alterações
+# Changelog
 
 ## 1.02 — 2026-10-29
 
-- Corrigidos acentos e separadores corrompidos na WebUI e neste histórico.
-- Scripts PowerShell com UTF-8 BOM para leitura correta pelo Windows PowerShell 5.1.
-- Charset UTF-8 declarado antes dos scripts HTML; testes protegem os textos da interface e a codificação dos scripts.
+- Fixed corrupted accents and separators in the WebUI and this changelog.
+- Added a UTF-8 BOM to PowerShell scripts for correct reading by Windows PowerShell 5.1.
+- Declared the UTF-8 charset before HTML scripts; checks protect interface text and script encoding.
 
 ## 0.92 RC — 2026-10-27
 
-- Corrigido gatilho: saturação ou recuperação explícita, sem compactar a cada resposta.
-- Contagem real do prompt formatado no server; tokenizer auxiliar e reserva explícita no CLI.
-- Constrained mantém principal entre interações e alterna apenas ao compactar.
-- Resident mantém ambos os processos; limpa e verifica slot sem descarregar principal.
-- context_state volta a ser produzido semanticamente pelo modelo principal.
-- Compilação incremental com fontes novas/alteradas e recuperação completa opcional.
-- GUI organizada em abas, com políticas, reservas, limite de memória, prefill, ações manuais e teste real de modo.
-- Indicadores e controles adicionados como adaptação à WebUI oficial.
-- Logotipo do raio substituído pelo ícone do HAME nos componentes nativos; favicon mantido.
-- Migração de configurações e preservação de preferências; dados antigos não modificados.
-- Nova pasta independente para rollback da 0.9 RC.
+- Fixed the trigger: compaction now occurs on saturation or explicit recovery, not after every response.
+- Counted the formatted server prompt; added an auxiliary tokenizer and an explicit CLI reserve.
+- Constrained keeps the main model between interactions and switches only during compaction.
+- Resident keeps both processes; clears and verifies a slot without unloading the main model.
+- `context_state` is again produced semantically by the main model.
+- Added incremental compilation for new/changed sources and optional full recovery.
+- Organized the GUI into tabs with policies, reserves, memory limit, prefill, manual actions, and a real mode test.
+- Added indicators and controls as an adaptation to the official WebUI.
+- Replaced the lightning logo with the HAME icon in native components; kept the favicon.
+- Added configuration migration and preference preservation; old data is not modified.
+- Added a separate rollback directory for 0.9 RC.
 
-A versão arquitetural da especificação original continua 1.3; a versão do aplicativo é 0.92 RC.
+The architectural version of the original specification remains 1.3; the application version is 0.92 RC.
 
-### Fotos e memória YAML
+### Photos and YAML memory
 
-- Imagens no server com mmproj: original preservado, descrição YAML e rota local de recuperação.
-- Compilador lê YAML; referências selecionadas preservadas fora da síntese, dentro do orçamento.
-- Teste real após compactação e reinício recupera FOTO-091 e link do original.
+- Added server images with mmproj: original preserved, YAML description, and local retrieval route.
+- The compiler reads YAML; selected references are preserved outside the summary, within the budget.
+- A real test after compaction and restart recovered FOTO-091 and the link to the original.
 
-## Portabilidade 0.92 RC
+## Portability in 0.92 RC
 
-- Windows x64 preservado com WinForms e detecção.
-- Linux x64/ARM64 e Termux Android ARM64: configuração manual, sem sondagem na inicialização.
-- Grupos de processos Unix e tratamento SIGTERM/SIGHUP/Ctrl+C.
-- Exemplos JSON explícitos e scripts de compilação/execução por alvo.
+- Preserved Windows x64 with WinForms and detection.
+- Linux x64/ARM64 and Termux Android ARM64 use manual configuration, without probing at startup.
+- Added Unix process groups and SIGTERM/SIGHUP/Ctrl+C handling.
+- Added explicit JSON examples and build/run scripts for each target.

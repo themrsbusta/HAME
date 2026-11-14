@@ -62,5 +62,5 @@ func installConsoleHandler(cancel func()) (func(), error) { return func() {}, ni
 func setConsoleTitle(s string)                            {}
 func openBrowser(url string)                              { fmt.Println("Abra manualmente no navegador: " + url) }
 func showConfigurator(path string) error {
-	return fmt.Errorf("Linux/Termux: edite %s; configurador gráfico disponível somente no Windows", path)
+	return fmt.Errorf("Linux/Termux: edit %s; the graphical configurator is available on Windows only", path)
 }

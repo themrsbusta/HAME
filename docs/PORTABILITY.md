@@ -1,14 +1,14 @@
-# Portabilidade 1.01
+# Portability 1.01
 
-| Alvo | GOOS | GOARCH | Configuração |
+| Target | GOOS | GOARCH | Configuration |
 |---|---|---|---|
-| Windows x64 | windows | amd64 | GUI/JSON, capacidades sondadas pelo llama |
-| Linux x64 | linux | amd64 | JSON explícito, sem sondagem automática |
-| Linux ARM64 | linux | arm64 | JSON explícito, sem sondagem automática |
-| Termux ARM64 | android | arm64 | JSON explícito, sem sondagem automática |
+| Windows x64 | windows | amd64 | GUI/JSON, capabilities probed by llama |
+| Linux x64 | linux | amd64 | Explicit JSON, no automatic probing |
+| Linux ARM64 | linux | arm64 | Explicit JSON, no automatic probing |
+| Termux ARM64 | android | arm64 | Explicit JSON, no automatic probing |
 
-Não há suporte 32 bits nesta entrega. Linux ARM64 e Android ARM64 têm binários distintos. O HAME é compilado com CGO=0; o motor llama.cpp deve ser compatível com ABI, CPU, bibliotecas, dispositivos e modelo do destino. Os campos llama_capabilities refletem o contrato nativo exigido pelo adaptador, não são tradução de flags ou uma substituição de --help.
+This release does not support 32-bit targets. Linux ARM64 and Android ARM64 use different binaries. HAME is built with CGO=0; the llama.cpp engine must be compatible with the target's ABI, CPU, libraries, devices, and model. The `llama_capabilities` fields reflect the native contract required by the adapter; they are not a translation of flags or a replacement for `--help`.
 
-O protocolo server exige /health, /props, /apply-template, /tokenize e /v1/chat/completions. Resident também exige /slots e o apagamento verificável de slot. O protocolo CLI depende de --output-file e dos parâmetros declarados no exemplo. A lista de capacidades deve ser atualizada manualmente se o operador trocar de build. As capacidades não são um atestado de compatibilidade; o motor ainda precisa aceitá-las de fato.
+The server protocol requires `/health`, `/props`, `/apply-template`, `/tokenize`, and `/v1/chat/completions`. Resident mode also requires `/slots` and verifiable slot erasure. The CLI protocol depends on `--output-file` and the parameters declared in the example. If the operator switches builds, the capability list must be updated manually. Declared capabilities do not certify compatibility; the engine still has to accept them in practice.
 
-A cópia Windows conserva o configurador. Os scripts shell não instalam dependências, não escolhem GPU, não procuram modelos e não modificam o JSON. Os exemplos são CPU, com caminhos de exemplo que precisam ser editados. As opções de orçamento ausentes ainda usam os valores de compatibilidade do núcleo; para controle completo use os exemplos preenchidos.
+The Windows copy retains the configurator. Shell scripts do not install dependencies, choose a GPU, search for models, or modify JSON. The examples target CPU and contain sample paths that must be edited. Missing budget options still use the core's compatibility defaults; use the fully populated examples for complete control.

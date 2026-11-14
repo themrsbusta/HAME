@@ -1,46 +1,46 @@
-# Validação — HAME 1.02
+# Validation — HAME 1.02
 
-## Verificações da 1.02 — 2026-10-29
+## 1.02 checks — 2026-10-29
 
-- Reparados os textos que já estavam gravados com codificação corrompida na WebUI e no CHANGELOG. O JavaScript vendorizado foi inspecionado e suas tabelas Unicode válidas foram preservadas.
-- Scripts PowerShell distribuídos em UTF-8 BOM; o inicializador usa Windows PowerShell 5.1, que não reconhece UTF-8 sem BOM automaticamente.
-- Testes de regressão conferem acentos, charset HTTP, declaração UTF-8 antes dos scripts e BOM em todos os scripts PowerShell. Suíte Go e vet aprovados; quatro alvos compilados pela Mica via HAME.
-- Autoteste do configurador executado no Windows PowerShell 5.1 com renderização das duas abas; acentos em memória, configuração, execução, sessão e recuperação conferidos visualmente.
+- Repaired text that had been stored with corrupted encoding in the WebUI and CHANGELOG. The vendored JavaScript was inspected and its valid Unicode tables were preserved.
+- Distributed PowerShell scripts with a UTF-8 BOM; the launcher uses Windows PowerShell 5.1, which does not automatically recognize UTF-8 without a BOM.
+- Regression checks cover accents, HTTP charset, UTF-8 declaration before scripts, and BOMs in all PowerShell scripts. Go tests and vet passed; Mica built four targets through HAME.
+- Ran the configurator self-test in Windows PowerShell 5.1 and rendered both tabs; visually checked accents in memory, configuration, execution, session, and recovery.
 
-## Verificações da 1.01 — 2026-10-29
+## 1.01 checks — 2026-10-29
 
-- Base: checkout novo do repositório público em `e1bcd4d`, com o ciclo de ferramentas implementado no chat principal. WebUI completa e licenças preservadas.
-- Windows x64, Go 1.27.3: suíte `go test ./...`, análise `go vet ./...` e compilação aprovadas. Casos novos cobrem esquema real de `/tools` da build b11946, resultados `role=tool`, histórico persistido, argumentos inválidos/aninhados, nomes não habilitados, IDs duplicados, chamadas em lote, truncamento, limite por turno, erro sem repetição automática e bloqueio de requisições de outros sites.
-- Teste real com Gemma E4B Q4_K_M e llama.cpp b11946 Vulkan: o modelo solicitou `exec_shell_command`, criou um arquivo com marcador e usou `read_file` para conferir o conteúdo. O arquivo real e os registros de ambas as ferramentas foram conferidos fora do modelo.
-- Elevação: o modelo executou `fltmc filters`, operação de leitura administrativa, com listagem real e `[exit code: 0]`. A mesma operação em sessão sem elevação retornou acesso negado. A configuração de execução como administrador é local; os pacotes públicos não forçam elevação.
-- Compilação Windows delegada à Mica pelo próprio HAME e conferida por Gepeto: ferramenta nativa retornou exit code 0; `-version`, FileVersion e ProductVersion identificam `1.01`. Recursos de ícone incluídos.
-- Compilação cruzada para Linux amd64, Linux arm64 e Android arm64 concluída. Esses binários não foram executados localmente em seus sistemas de destino nesta atualização; validação de inferência e ferramentas foi feita no Windows. A automação GitHub testa Windows e Ubuntu a cada push.
-- A API `/tools` do llama.cpp é interna e experimental. O fixture em `cmd/hame/testdata/llama-b11946-tools.json` contém somente as definições públicas das sete ferramentas, sem histórico ou configuração pessoal.
+- Base: a fresh checkout of the public repository at `e1bcd4d`, with the tool cycle implemented in the main chat. Complete WebUI and licenses were preserved.
+- Windows x64, Go 1.27.3: `go test ./...`, `go vet ./...`, and the build passed. New cases cover the actual `/tools` schema from build b11946, `role=tool` results, persisted history, invalid/nested arguments, disabled names, duplicate IDs, batched calls, truncation, per-turn limits, errors without automatic retry, and blocking requests from other sites.
+- Real test with Gemma E4B Q4_K_M and llama.cpp b11946 Vulkan: the model requested `exec_shell_command`, created a marked file, and used `read_file` to verify its contents. The actual file and both tool records were checked outside the model.
+- Elevation: the model ran `fltmc filters`, an administrative read operation, and received a real listing with `[exit code: 0]`. The same operation in a non-elevated session was denied. Running as administrator is a local setting; public packages do not force elevation.
+- Windows build delegated to Mica by HAME and checked by Gepeto: the native tool returned exit code 0; `-version`, FileVersion, and ProductVersion identify `1.01`. Icon resources were included.
+- Cross-compilation for Linux amd64, Linux arm64, and Android arm64 completed. These binaries were not run locally on their target systems in this update; inference and tool validation were done on Windows. GitHub automation tests Windows and Ubuntu on every push.
+- The llama.cpp `/tools` API is internal and experimental. The fixture in `cmd/hame/testdata/llama-b11946-tools.json` contains only the seven public tool definitions, with no history or personal configuration.
 
-## Histórico da versão 1.0 (relato preservado)
+## HAME 1.0 history (preserved report)
 
-## Verificações desta atualização — 2026-10-28
+## Checks for this update — 2026-10-28
 
-- Base funcional: commit `b6531bb3283f3df9988095338108808460ecf6e4` da 0.92 RC; reorganização e identificação 1.0, sem novas funcionalidades do motor.
-- WebUI: 60 arquivos recuperados do `embed.FS` do executável local 0.92 RC. Os conteúdos foram conferidos contra os hashes do próprio embed antes da atualização da identificação no HTML e no service worker. Os assets, inclusive os referenciados pelo index, estão em `cmd/hame/webui/`.
-- Windows x64, Go 1.27.3: `go test ./...`, `go vet ./...` e build aprovados. O script `scripts/build-all.ps1` compilou Windows amd64, Linux amd64, Linux arm64 e Android arm64 com CGO desabilitado. Recursos Windows: FileVersion e ProductVersion `1.0`; `HAME.exe -version` retorna `HAME 1.0`.
-- Configurador: autoteste de seleção de dispositivos/configuração da interface aprovado. Não houve novo probe real do llama/GPU nem nova inferência nesta atualização.
-- Checkout limpo local: novo clone do commit reorganizado, sem recursos `.syso` ou saídas de build; `go test ./...`, `go vet ./...`, `go build ./cmd/hame` e `hame.exe -version` aprovados. As 60 referências locais do HTML/manifest foram conferidas; as duas licenças mantêm os blobs originais. A única alteração funcional nas fontes Go é a constante de versão.
-- Especificação original fornecida preservada byte a byte em `specs/HAME_1.3.yaml`; SHA-256 `d2b67e83eee312e1411d6a08782562a101cd7bab711d3c3301555ce3d2087422`.
-- Não foram gerados nem publicados novos pacotes de Release. O ZIP 1.0 da máquina de origem não foi utilizado: esta atualização foi reconstruída a partir da base 0.92 RC, conforme orientação do autor.
+- Functional base: commit `b6531bb3283f3df9988095338108808460ecf6e4` from 0.92 RC; reorganized and labeled 1.0, with no new engine features.
+- WebUI: 60 files recovered from the local 0.92 RC executable's `embed.FS`. Contents were checked against the embedded hashes before updating the version in the HTML and service worker. Assets, including those referenced by the index, are in `cmd/hame/webui/`.
+- Windows x64, Go 1.27.3: `go test ./...`, `go vet ./...`, and build passed. `scripts/build-all.ps1` built Windows amd64, Linux amd64, Linux arm64, and Android arm64 with CGO disabled. Windows resources: FileVersion and ProductVersion `1.0`; `HAME.exe -version` returns `HAME 1.0`.
+- Configurator: device-selection/configuration UI self-test passed. No new real llama/GPU probe or inference was performed in this update.
+- Clean local checkout: a new clone of the reorganized commit, without `.syso` resources or build outputs; `go test ./...`, `go vet ./...`, `go build ./cmd/hame`, and `hame.exe -version` passed. The 60 local HTML/manifest references were checked; both licenses retain their original blobs. The only functional change in Go source is the version constant.
+- The supplied original specification was preserved byte for byte in `specs/HAME_1.3.yaml`; SHA-256 `d2b67e83eee312e1411d6a08782562a101cd7bab711d3c3301555ce3d2087422`.
+- No new Release packages were generated or published. The source machine's 1.0 ZIP was not used: this update was rebuilt from the 0.92 RC base, as requested by the author.
 
-Linux ARM64 e Android/Termux não foram executados em hardware de destino. Os resultados WSL2 abaixo são herdados da documentação 0.92 RC, sem nova execução local. Ferramentas genéricas continuam ausentes; referências de fotos não reanalisam o original e sínteses podem omitir informações.
+Linux ARM64 and Android/Termux were not run on target hardware. The WSL2 results below are inherited from the 0.92 RC documentation and were not re-run locally. Generic tools remain absent; photo references do not re-analyze originals, and summaries may omit information.
 
-## Histórico de validação 0.92 RC (relato preservado)
+## 0.92 RC validation history (preserved report)
 
-- Windows x64: suíte Go e go vet aprovados; binário executa -version e possui FileVersion/ProductVersion 0.92 RC. Configurador aprovado com detecção assíncrona real do llama/GPU e validação, usando configuração isolada.
-- Linux x64: suíte compilada para linux/amd64 e executada com sucesso no Ubuntu-24.04 WSL2. Inclui memória/compactação, histórico, fotos/YAML, relógio, API e entradas inválidas. Teste de grupos de processos confirmou morte dos descendentes próprios e sobrevivência de um processo independente. Validação manual confirmou que o executável falso não foi invocado para autodetecção. A migração automática de configuração antiga é exclusiva do Windows e foi corretamente ignorada no teste Unix.
-- Linux x64: ELF estático confirmado e -version executado no Ubuntu. Configuração ausente apresenta erro; não abre configurador. Não houve inferência com um llama Linux real: esse motor não está instalado no Ubuntu usado nos testes.
-- Linux ARM64: compilação cruzada concluída; ELF AArch64 estático conferido. Sem execução em hardware ARM64.
-- Termux ARM64: compilação cruzada android/arm64 concluída; ELF AArch64 PIE com interpretador /system/bin/linker64 conferido. Sem execução em aparelho Android/Termux. Não confundir com o alvo linux/arm64.
+- Windows x64: Go tests and go vet passed; the binary runs `-version` and has FileVersion/ProductVersion 0.92 RC. The configurator passed with real asynchronous llama/GPU detection and validation using an isolated configuration.
+- Linux x64: the suite was cross-compiled for linux/amd64 and ran successfully on Ubuntu-24.04 WSL2. It covers memory/compaction, history, photos/YAML, clock, API, and invalid inputs. Process-group tests confirmed that owned descendants were terminated while an independent process survived. Manual validation confirmed that the fake executable was not run for autodetection. Automatic migration of old configuration is Windows-only and was correctly skipped in the Unix test.
+- Linux x64: confirmed the static ELF and ran `-version` on Ubuntu. Missing configuration reports an error; no configurator opens. No inference with a real Linux llama was performed because that engine is not installed on the Ubuntu used for tests.
+- Linux ARM64: cross-compilation completed; the static AArch64 ELF was checked. Not run on ARM64 hardware.
+- Termux ARM64: android/arm64 cross-compilation completed; the AArch64 PIE with `/system/bin/linker64` interpreter was checked. Not run on an Android/Termux device. Do not confuse this target with linux/arm64.
 
-Compilador instalado: Go 1.18 windows/amd64, CGO desabilitado. Os testes de inferência reais e recuperação de fotos da 0.91 estão documentados naquela versão; não são apresentados como nova validação de inferência para todos os alvos da 0.92.
+Installed compiler: Go 1.18 windows/amd64, CGO disabled. Real inference and photo-recovery tests from 0.91 are documented in that version; they are not presented as new inference validation for every 0.92 target.
 
-A especificação HAME_1.3.yaml mantém os bytes da versão anterior. Os pacotes não incluem llama.cpp, modelos ou dados pessoais. As fontes são comuns aos quatro alvos, com arquivos específicos de controle de processos e comportamento manual Unix.
+`HAME_1.3.yaml` retains the bytes from the previous version. Packages do not include llama.cpp, models, or personal data. Source is shared across the four targets, with target-specific process-control files and manual Unix behavior.
 
-Pacote Linux x64 extraído no Ubuntu e executado com sucesso; erro de configuração ausente e testes de não sondagem/grupo de processos confirmados. Scripts Unix foram normalizados para LF e os tar.gz preservam modo 0755 para hame/start.sh. A suíte de testes Android ARM64 também compilou; não foi executada em aparelho.
+The Linux x64 package was extracted and ran successfully on Ubuntu; missing-configuration errors and non-probing/process-group checks were confirmed. Unix scripts were normalized to LF, and tar.gz archives preserve mode 0755 for `hame/start.sh`. The Android ARM64 test suite also compiled; it was not run on a device.

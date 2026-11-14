@@ -55,25 +55,25 @@ func (c Config) validateTools() error {
 		return nil
 	}
 	if c.Backend != "server" || c.MainURL != "" {
-		return errors.New("tools exige backend server local gerenciado pelo HAME")
+		return errors.New("tools requires a local server backend managed by HAME")
 	}
 	for _, n := range c.Tools {
 		if n != "all" && !nativeTools[n] {
-			return fmt.Errorf("ferramenta nativa desconhecida: %s", n)
+			return fmt.Errorf("unknown native tool: %s", n)
 		}
 	}
 	if !filepath.IsAbs(c.ToolCWD) {
-		return errors.New("tool_cwd deve ser um diretório absoluto explícito")
+		return errors.New("tool_cwd must be an explicit absolute directory")
 	}
 	info, err := os.Stat(c.ToolCWD)
 	if err != nil || !info.IsDir() {
-		return errors.New("tool_cwd não existe ou não é diretório")
+		return errors.New("tool_cwd does not exist or is not a directory")
 	}
 	if c.ToolMaxCalls < 1 || c.ToolMaxCalls > 32 {
-		return errors.New("tool_max_calls deve estar entre 1 e 32")
+		return errors.New("tool_max_calls must be between 1 and 32")
 	}
 	if c.ToolTimeout < 1 || c.ToolTimeout > 120 {
-		return errors.New("tool_timeout_seconds deve estar entre 1 e 120")
+		return errors.New("tool_timeout_seconds must be between 1 and 120")
 	}
 	args, err := parseStartupArgs(c.MainExtraArgs)
 	if err != nil {
@@ -81,7 +81,7 @@ func (c Config) validateTools() error {
 	}
 	for _, a := range args {
 		if a == "--tools" || strings.HasPrefix(a, "--tools=") {
-			return errors.New("configure tools no campo próprio, sem repetir --tools em main_extra_args")
+			return errors.New("configure tools in its dedicated field; do not repeat --tools in main_extra_args")
 		}
 	}
 	return nil
@@ -99,7 +99,7 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 		return nil, nil
 	}
 	if !loopbackWorker(w) {
-		return nil, errors.New("tools exige worker HTTP em 127.0.0.1")
+		return nil, errors.New("tools requires an HTTP worker on 127.0.0.1")
 	}
 	if w.tools != nil {
 		return w.tools, nil
@@ -114,7 +114,7 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 	}
 	defer r.Body.Close()
 	if r.StatusCode != http.StatusOK {
-		return nil, fmt.Errorf("descoberta /tools HTTP %d; verifique o suporte nativo de llama-server", r.StatusCode)
+		return nil, fmt.Errorf("/tools discovery returned HTTP %d; check native llama-server support", r.StatusCode)
 	}
 	var entries []struct {
 		Tool       string         `json:"tool"`
@@ -129,25 +129,25 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 	for _, entry := range entries {
 		d := entry.Definition
 		if entry.Type != "server" || entry.Tool != d.Function.Name {
-			return nil, errors.New("descritor /tools incompatível")
+			return nil, errors.New("incompatible /tools descriptor")
 		}
 		if d.Type != "function" || !e.cfg.allowsTool(d.Function.Name) {
 			continue
 		}
 		var schema map[string]any
 		if json.Unmarshal(d.Function.Parameters, &schema) != nil || schema["type"] != "object" || seen[d.Function.Name] {
-			return nil, errors.New("schema /tools inválido ou duplicado")
+			return nil, errors.New("invalid or duplicate /tools schema")
 		}
 		seen[d.Function.Name] = true
 		defs = append(defs, d)
 	}
 	for _, n := range e.cfg.Tools {
 		if n != "all" && !seen[n] {
-			return nil, fmt.Errorf("ferramenta configurada não anunciada: %s", n)
+			return nil, fmt.Errorf("configured tool was not advertised: %s", n)
 		}
 	}
 	if len(defs) == 0 {
-		return nil, errors.New("llama-server não anunciou ferramentas habilitadas")
+		return nil, errors.New("llama-server did not advertise any enabled tools")
 	}
 	w.tools = defs
 	return defs, nil
@@ -155,7 +155,7 @@ func (e *Engine) toolDefinitions(ctx context.Context, w *Worker) ([]ToolDefiniti
 
 func validateToolCall(call ToolCall, defs []ToolDefinition) (map[string]any, error) {
 	if call.Type != "function" || call.ID == "" || len(call.ID) > 200 {
-		return nil, errors.New("tool_call sem tipo ou id válido")
+		return nil, errors.New("tool_call has no valid type or ID")
 	}
 	var def *ToolDefinition
 	for i := range defs {
@@ -165,14 +165,14 @@ func validateToolCall(call ToolCall, defs []ToolDefinition) (map[string]any, err
 		}
 	}
 	if def == nil {
-		return nil, fmt.Errorf("ferramenta não habilitada: %s", call.Function.Name)
+		return nil, fmt.Errorf("tool is not enabled: %s", call.Function.Name)
 	}
 	if len(call.Function.Arguments) > 64<<10 {
-		return nil, errors.New("argumentos de ferramenta excedem 64 KiB")
+		return nil, errors.New("tool arguments exceed 64 KiB")
 	}
 	var args map[string]any
 	if json.Unmarshal([]byte(call.Function.Arguments), &args) != nil || args == nil {
-		return nil, errors.New("argumentos devem ser objeto JSON")
+		return nil, errors.New("arguments must be a JSON object")
 	}
 	var schema toolSchema
 	if err := json.Unmarshal(def.Function.Parameters, &schema); err != nil {
@@ -202,11 +202,11 @@ func (s toolSchema) validate(v any, depth int) error {
 	case "object":
 		object, ok := v.(map[string]any)
 		if !ok {
-			return errors.New("argumento deve ser objeto")
+			return errors.New("argument must be an object")
 		}
 		for _, key := range s.Required {
 			if _, ok := object[key]; !ok {
-				return fmt.Errorf("argumento obrigatório ausente: %s", key)
+				return fmt.Errorf("required argument is missing: %s", key)
 			}
 		}
 		for key, value := range object {
@@ -222,7 +222,7 @@ func (s toolSchema) validate(v any, depth int) error {
 	case "array":
 		array, ok := v.([]any)
 		if !ok || s.Items == nil {
-			return errors.New("array ou schema de items inválido")
+		return errors.New("invalid array or items schema")
 		}
 		for _, item := range array {
 			if err := s.Items.validate(item, depth+1); err != nil {
@@ -240,10 +240,10 @@ func (s toolSchema) validate(v any, depth int) error {
 		n, ok := v.(float64)
 		valid = ok && n == float64(int64(n))
 	default:
-		return fmt.Errorf("tipo de schema não suportado: %s", s.Type)
+		return fmt.Errorf("unsupported schema type: %s", s.Type)
 	}
 	if !valid {
-		return fmt.Errorf("tipo de argumento inválido, esperado %s", s.Type)
+		return fmt.Errorf("invalid argument type; expected %s", s.Type)
 	}
 	return nil
 }
@@ -261,11 +261,11 @@ type ToolAudit struct {
 
 func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call ToolCall, args map[string]any) (string, error) {
 	if !loopbackWorker(w) || !e.cfg.allowsTool(call.Function.Name) {
-		return "", errors.New("execução de ferramenta não autorizada")
+		return "", errors.New("tool execution is not authorized")
 	}
 	if call.Function.Name == "exec_shell_command" {
 		if strings.TrimSpace(fmt.Sprint(args["command"])) == "" {
-			return "", errors.New("comando vazio")
+			return "", errors.New("empty command")
 		}
 		timeout := float64(e.cfg.ToolTimeout)
 		if timeout > 60 {
@@ -279,7 +279,7 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 	path := filepath.Join(e.cfg.Data, "tool-audit", id, fmt.Sprintf("%020d.json", time.Now().UnixNano()))
 	audit := ToolAudit{Session: id, Call: call, Params: args, CWD: e.cfg.ToolCWD, Stage: "started", Updated: time.Now().Format(time.RFC3339Nano)}
 	if err := atomicJSON(path, audit); err != nil {
-		return "", fmt.Errorf("não foi possível registrar chamada antes de executar: %w", err)
+		return "", fmt.Errorf("could not record the call before execution: %w", err)
 	}
 	ctx, cancel := context.WithTimeout(ctx, time.Duration(e.cfg.ToolTimeout+5)*time.Second)
 	defer cancel()
@@ -296,7 +296,7 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 			data, err = io.ReadAll(io.LimitReader(r.Body, (1<<20)+1))
 			r.Body.Close()
 			if err == nil && len(data) > 1<<20 {
-				err = errors.New("resultado de ferramenta excedeu 1 MiB")
+				err = errors.New("tool result exceeded 1 MiB")
 			}
 			if err == nil && r.StatusCode != 200 {
 				err = fmt.Errorf("/tools HTTP %d: %.500s", r.StatusCode, data)
@@ -308,7 +308,7 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 				err = json.Unmarshal(data, &v)
 				if err == nil {
 					if v.Text == nil {
-						err = errors.New("resposta /tools incompatível: plain_text_response ausente")
+					err = errors.New("incompatible /tools response: plain_text_response is missing")
 					} else {
 						result = *v.Text
 					}
@@ -324,10 +324,10 @@ func (e *Engine) executeTool(ctx context.Context, w *Worker, id string, call Too
 		audit.Error = err.Error()
 	}
 	if saveErr := atomicJSON(path, audit); saveErr != nil {
-		return "", fmt.Errorf("falha ao registrar resultado; execução pode ter ocorrido: %w", saveErr)
+		return "", fmt.Errorf("failed to record the result; execution may have occurred: %w", saveErr)
 	}
 	if err != nil {
-		return "", fmt.Errorf("execução pode ter ocorrido; não repetir automaticamente: %w", err)
+		return "", fmt.Errorf("execution may have occurred; do not retry automatically: %w", err)
 	}
 	return result, nil
 }
@@ -359,7 +359,7 @@ func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []
 			return "", trace, err
 		}
 		if n+e.reserve()+e.cfg.TemplateReserve > e.cfg.Context {
-			return "", trace, errors.New("contexto insuficiente para o ciclo de ferramentas; resultados estão no tool-audit")
+		return "", trace, errors.New("insufficient context for the tool cycle; results are in tool-audit")
 		}
 		body := map[string]any{"messages": messages, "tools": defs, "tool_choice": "auto", "max_tokens": e.cfg.Output, "temperature": 0.2, "cache_prompt": true, "id_slot": 0}
 		var response struct {
@@ -375,16 +375,16 @@ func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []
 			return "", trace, err
 		}
 		if len(response.Choices) != 1 {
-			return "", trace, errors.New("resposta LLM sem escolha única")
+		return "", trace, errors.New("LLM response has no single choice")
 		}
 		choice := response.Choices[0]
 		answer := choice.Message
 		if choice.Finish == "length" {
-			return "", trace, errors.New("resposta truncada; ferramentas não executadas nessa resposta")
+		return "", trace, errors.New("response was truncated; tools were not executed for this response")
 		}
 		if len(answer.ToolCalls) == 0 {
 			if choice.Finish == "tool_calls" || strings.TrimSpace(answer.Content) == "" {
-				return "", trace, errors.New("resposta LLM vazia ou tool_calls ausentes")
+				return "", trace, errors.New("LLM response is empty or tool_calls are missing")
 			}
 			answer.Role = "assistant"
 			trace = append(trace, answer)
@@ -392,13 +392,13 @@ func (e *Engine) chatWithTools(ctx context.Context, w *Worker, id string, msg []
 			return answer.Content, trace, nil
 		}
 		if used+len(answer.ToolCalls) > e.cfg.ToolMaxCalls {
-			return "", trace, errors.New("limite de chamadas de ferramentas atingido")
+			return "", trace, errors.New("tool call limit reached")
 		}
 		// Validate the entire batch before executing any member.
 		batch := make([]map[string]any, len(answer.ToolCalls))
 		for i, call := range answer.ToolCalls {
 			if ids[call.ID] {
-				return "", trace, errors.New("tool_call id duplicado")
+				return "", trace, errors.New("duplicate tool_call ID")
 			}
 			ids[call.ID] = true
 			batch[i], err = validateToolCall(call, defs)

@@ -244,7 +244,7 @@ func TestToolTransportFailureNotRetried(t *testing.T) {
 	root := t.TempDir()
 	e := &Engine{cfg: Config{Tools: []string{"exec_shell_command"}, ToolCWD: root, ToolTimeout: 1, Data: root}, client: s.Client()}
 	_, err := e.executeTool(context.Background(), &Worker{url: s.URL}, "test", testCall("id", "exec_shell_command", `{"command":"echo"}`), map[string]any{"command": "echo"})
-	if err == nil || calls != 1 || !strings.Contains(err.Error(), "não repetir automaticamente") {
+	if err == nil || calls != 1 || !strings.Contains(err.Error(), "do not retry automatically") {
 		t.Fatalf("calls=%d err=%v", calls, err)
 	}
 	files, _ := filepath.Glob(filepath.Join(root, "tool-audit", "test", "*.json"))

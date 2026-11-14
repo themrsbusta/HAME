@@ -52,7 +52,7 @@ func parseStartupArgs(raw string) ([]string, error) {
 			i++
 		}
 		if quoted {
-			return nil, errors.New("aspas duplas não fechadas nos argumentos extras")
+			return nil, errors.New("unclosed double quote in extra arguments")
 		}
 		if started {
 			result = append(result, value.String())
@@ -84,10 +84,10 @@ func validateStartupArgs(raw string, profile *Profile) ([]string, error) {
 			}
 		}
 		if blocked {
-			return nil, fmt.Errorf("%s é controlado pelo HAME; use os campos próprios ou remova o conflito", flag)
+			return nil, fmt.Errorf("%s is controlled by HAME; use its dedicated field or remove the conflict", flag)
 		}
 		if profile != nil && strings.HasPrefix(flag, "--") && !profile.Flags[flag] {
-			return nil, fmt.Errorf("o llama selecionado não anuncia o argumento extra %s", flag)
+			return nil, fmt.Errorf("the selected llama does not advertise the extra argument %s", flag)
 		}
 	}
 	return args, nil

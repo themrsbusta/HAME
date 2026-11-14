@@ -1,9 +1,9 @@
-# Licenciamento e atribuição
+# Licensing and attribution
 
-O código próprio do HAME é distribuído sob a licença **BSD de 3 cláusulas (BSD-3-Clause)**. Copyright (c) 2026, Busta Supastar. O texto completo está em LICENSE.
+HAME-authored code is distributed under the **BSD 3-Clause License (BSD-3-Clause)**. Copyright (c) 2026, Busta Supastar. The complete license text is in LICENSE.
 
-A interface oficial e os componentes derivados do llama.cpp conservam a licença MIT upstream em LICENSE-llama.cpp.txt. A BSD-3-Clause do HAME não substitui a licença, os avisos ou as obrigações de componentes de terceiros. A interface foi extraída da instalação llama-server b10687 fornecida pelo usuário.
+The official interface and components derived from llama.cpp retain the upstream MIT license in LICENSE-llama.cpp.txt. HAME's BSD-3-Clause license does not replace the licenses, notices, or obligations for third-party components. The interface was extracted from the llama-server b10687 installation supplied by the user.
 
-Os modelos GGUF e os binários/DLLs do llama.cpp não estão incluídos no pacote de distribuição ou no código-fonte preparado; suas licenças devem ser observadas separadamente se forem redistribuídos.
+GGUF models and llama.cpp binaries/DLLs are not included in the distribution package or prepared source code; their licenses must be observed separately if they are redistributed.
 
-A arte do ícone foi gerada para o projeto com image_gen integrado. O ícone distribuído está em `assets/HAME.ico`; o PNG original e o prompt de geração não foram fornecidos nesta entrega.
+The icon artwork was generated for this project with integrated image_gen. The distributed icon is in `assets/HAME.ico`; the original PNG and generation prompt were not supplied in this delivery.

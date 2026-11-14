@@ -43,7 +43,7 @@ func (e *Engine) compactHTTP(w http.ResponseWriter, r *http.Request) {
 		e.metaMu.RUnlock()
 	}
 	if !safeID.MatchString(q.ID) {
-		http.Error(w, "selecione uma conversa existente", 400)
+		http.Error(w, "select an existing conversation", 400)
 		return
 	}
 	if err := e.acquire(r.Context()); err != nil {
@@ -57,7 +57,7 @@ func (e *Engine) compactHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	if len(s.Messages) == 0 {
-		http.Error(w, "sessão não encontrada", 404)
+		http.Error(w, "session not found", 404)
 		return
 	}
 	err = e.compactLocked(r.Context(), q.ID, "", &s, q.Recover, "manual")
@@ -82,7 +82,7 @@ func memoryClient(c Config, id string, compact, recover bool) error {
 	err = json.NewDecoder(health.Body).Decode(&h)
 	health.Body.Close()
 	if err != nil || h.Version != Version {
-		return fmt.Errorf("o serviço em %s não é HAME %s", c.Listen, Version)
+		return fmt.Errorf("the service at %s is not HAME %s", c.Listen, Version)
 	}
 	url := "http://" + c.Listen + "/hame/runtime"
 	var req *http.Request
@@ -120,7 +120,7 @@ func (e *Engine) testExecutionMode(ctx context.Context) error {
 	}
 	if e.cfg.Mode == "resident" {
 		if e.main == nil || e.compiler == nil {
-			return fmt.Errorf("Resident não manteve os dois workers")
+			return fmt.Errorf("Resident did not keep both workers running")
 		}
 		return nil
 	}
