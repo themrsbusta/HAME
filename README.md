@@ -1,5 +1,8 @@
 # HAME 1.02
 
+**Division:** Panthera Research — Panthera Research. **License:** [BSD-3-Clause](LICENSE).
+
+
 Persistent memory for llama.cpp. A Go application for Windows x64, Linux x64, Linux ARM64, and Android ARM64 through Termux. HAME-authored code is BSD-3-Clause; the llama.cpp WebUI retains its MIT license. This version keeps memory usage, Constrained/Resident modes, original photos and YAML descriptions, history, and the system clock.
 
 ## Fixes in 1.02
